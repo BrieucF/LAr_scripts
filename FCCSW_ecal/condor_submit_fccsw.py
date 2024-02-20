@@ -60,12 +60,13 @@ export K4RECCALORIMETER=%s
 export K4SIMGEANT4=%s
 export K4FWCORE=%s
 export FCCDETECTORS=%s
+export K4GEO=%s
 export PYTHONPATH=%s
 LD_LIBRARY_PATH=%s
 CMAKE_PREFIX_PATH=%s
 PATH=%s
 export FCCBASEDIR=%s
-"""%(os.environ.get("K4RECCALORIMETER", ""), os.environ.get("K4SIMGEANT4", ""), os.environ.get("K4FWCORE", ""), os.environ.get("FCCDETECTORS", ""), os.environ.get("PYTHONPATH", ""), os.environ.get("LD_LIBRARY_PATH", ""), os.environ.get("CMAKE_PREFIX_PATH", ""), os.environ.get("PATH", ""), os.environ.get("FCCBASEDIR", ""))
+"""%(os.environ.get("K4RECCALORIMETER", ""), os.environ.get("K4SIMGEANT4", ""), os.environ.get("K4FWCORE", ""), os.environ.get("FCCDETECTORS", ""), os.environ.get("K4GEO", ""), os.environ.get("PYTHONPATH", ""), os.environ.get("LD_LIBRARY_PATH", ""), os.environ.get("CMAKE_PREFIX_PATH", ""), os.environ.get("PATH", ""), os.environ.get("FCCBASEDIR", ""))
 
 
 
@@ -94,7 +95,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if os.environ.get("FCCDETECTORS", "") == "":
+    if os.environ.get("K4GEO", "") == "":
         print("Error: fcc environment not set, please run source init.sh and source install/setup.sh in the FCCSW root directory\nExitting...")
         sys.exit(1)
 
