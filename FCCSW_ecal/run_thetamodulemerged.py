@@ -6,6 +6,7 @@ from Configurables import CaloTowerToolFCCee
 from Configurables import CreateCaloClustersSlidingWindowFCCee
 from Configurables import CorrectCaloClusters
 from Configurables import CalibrateCaloClusters
+from Configurables import AugmentClustersFCCee
 from Configurables import CreateEmptyCaloCellsCollection
 from Configurables import CreateCaloCellPositionsFCCee
 from Configurables import CellPositionsECalBarrelModuleThetaSegTool
@@ -72,16 +73,18 @@ Nevts = 10
 # momentum = 100  # in GeV
 momentum = 50  # in GeV
 # momentum = 10  # in GeV
-thetaMin = 50  # degrees
-thetaMax = 130  # degrees
+thetaMin = 45  # degrees
+thetaMax = 135  # degrees
 # thetaMin = 89
 # thetaMax = 91
 # thetaMin = 90  # degrees
 # thetaMax = 90  # degrees
 # phiMin = halfpi
 # phiMax = halfpi
-phiMin = 0
-phiMax = twopi
+# phiMin = 0
+# phiMax = twopi
+phiMin = pi
+phiMax = pi
 
 # particle origin
 # origR = 1000.0*mm
@@ -536,8 +539,23 @@ correctCaloClusters = CorrectCaloClusters("correctCaloClusters",
                                           OutputLevel=INFO
                                           )
 
+augmentCaloClusters = AugmentClustersFCCee("augmentCaloClusters",
+                                           inClusters=createClusters.clusters.Path,
+                                           outClusters="Augmented" + createClusters.clusters.Path,
+                                           systemIDs=[4],
+                                           systemNames=["EMB"],
+                                           numLayers=[12],
+                                           readoutNames=[ecalBarrelReadoutName],
+                                           layerFieldNames=["layer"],
+                                           thetaRecalcWeights=[
+                                               [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
+                                           ],
+                                           OutputLevel=INFO
+                                           )
+
 calibrateCaloClusters = CalibrateCaloClusters("calibrateCaloClusters",
-                                              inClusters=createClusters.clusters.Path,
+                                              # inClusters=createClusters.clusters.Path,
+                                              inClusters="Augmented" + createClusters.clusters.Path,
                                               outClusters="Calibrated" + createClusters.clusters.Path,
                                               systemIDs=[4],
                                               numLayers=[12],
@@ -630,8 +648,22 @@ correctCaloTopoClusters = CorrectCaloClusters(
     OutputLevel=INFO
 )
 
+augmentCaloTopoClusters = AugmentClustersFCCee("augmentCaloTopoClusters",
+                                               inClusters=createTopoClusters.clusters.Path,
+                                               outClusters="Augmented" + createTopoClusters.clusters.Path,
+                                               systemIDs=[4],
+                                               systemNames=["EMB"],
+                                               numLayers=[12],
+                                               readoutNames=[ecalBarrelReadoutName],
+                                               layerFieldNames=["layer"],
+                                               thetaRecalcWeights=[
+                                                   [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
+                                               ],
+                                               OutputLevel=INFO)
+
 calibrateCaloTopoClusters = CalibrateCaloClusters("calibrateCaloTopoClusters",
-                                                  inClusters=createTopoClusters.clusters.Path,
+                                                  #inClusters=createTopoClusters.clusters.Path,
+                                                  inClusters="Augmented" + createTopoClusters.clusters.Path,
                                                   outClusters="Calibrated" + createTopoClusters.clusters.Path,
                                                   systemIDs=[4],
                                                   numLayers=[12],
@@ -726,6 +758,8 @@ if applyUpDownstreamCorrections:
         correctCaloClusters,
         correctCaloTopoClusters
     ]
+
+TopAlg += [augmentCaloClusters, augmentCaloTopoClusters]
 
 if applyMVAClusterEnergyCalibration:
     TopAlg += [
