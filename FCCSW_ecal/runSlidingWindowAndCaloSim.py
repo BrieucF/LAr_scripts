@@ -316,6 +316,7 @@ from Configurables import CorrectCaloClusters
 correctCaloClusters = CorrectCaloClusters("correctCaloClusters",
                                           inClusters = createClusters.clusters.Path,
                                           outClusters = "Corrected"+createClusters.clusters.Path,
+                                          systemIDs=[4],
                                           numLayers = [12],
                                           firstLayerIDs = [0],
                                           lastLayerIDs = [11],
