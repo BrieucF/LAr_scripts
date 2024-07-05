@@ -590,7 +590,7 @@ if doSWClustering:
                                                    #thetaRecalcWeights=[
                                                    #    [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
                                                    #],
-                                                   do_pi0_photon_shapeVar=False,
+                                                   do_photon_shapeVar=False,
                                                    OutputLevel=INFO
                                                    )
 
@@ -710,7 +710,7 @@ if doTopoClustering:
                                                        # thetaRecalcWeights=[
                                                        #     [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
                                                        # ],
-                                                       do_pi0_photon_shapeVar=False,
+                                                       do_photon_shapeVar=False,
                                                        OutputLevel=INFO)
 
     if applyMVAClusterEnergyCalibration:
