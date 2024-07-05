@@ -282,11 +282,12 @@ if runHCal:
     saveHCalTool.CaloHits.Path = hcalBarrelHitsName
 
     # - HCAL endcap
-    # saveHCalEndcapTool = SimG4SaveCalHits(
-    #    "saveHCalEndcapHits",
-    #    readoutName = hcalEndcapReadoutName
-    # )
-    # saveHCalEndcapTool.CaloHits.Path = "HCalEndcapHits"
+    saveHCalEndcapTool = SimG4SaveCalHits(
+        "saveHCalEndcapHits",
+        readoutName = hcalEndcapReadoutName,
+        OutputLevel=INFO
+    )
+    saveHCalEndcapTool.CaloHits.Path = "HCalEndcapHits"
 
 # next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
 particle_converter = SimG4PrimariesFromEdmTool("EdmConverter")
@@ -299,7 +300,7 @@ outputTools = [
 if runHCal:
     outputTools += [
         saveHCalTool,
-        # saveHCalEndcapTool
+        saveHCalEndcapTool
     ]
 
 if saveG4Hist:
@@ -491,14 +492,34 @@ if runHCal:
     createHcalBarrelPositionedCells2.positionedHits.Path = hcalBarrelPositionedCellsName2
 
     # Create cells in HCal endcap
-    # createHcalEndcapCells = CreateCaloCells("CreateHcalEndcapCaloCells",
-    #                                    doCellCalibration=True,
-    #                                    calibTool=calibHcalEndcap,
-    #                                    addCellNoise=False,
-    #                                    filterCellNoise=False,
-    #                                    OutputLevel=INFO)
-    # createHcalEndcapCells.hits.Path="HCalEndcapHits"
-    # createHcalEndcapCells.cells.Path="HCalEndcapCells"
+    # 1 - merge hits into cells with the default readout
+    hcalEndcapCellsName = "HCalEndcapCells"
+    createHcalEndcapCells = CreateCaloCells("CreateHCalEndcapCells",
+                                            doCellCalibration=True,
+                                            calibTool=calibHcalEndcap,
+                                            addCellNoise=False,
+                                            filterCellNoise=False,
+                                            addPosition=True,
+                                            hits="HCalEndcapHits",
+                                            cells=hcalEndcapCellsName,
+                                            OutputLevel=INFO)
+
+    # 2 - attach positions to the cells (cell positions needed for RedoSegmentation!)
+    #cellPositionHcalEndcapTool = CellPositionsHCalBarrelPhiThetaSegTool(
+    cellPositionHcalEndcapTool = CellPositionsHCalBarrelPhiThetaSegTool(
+        "CellPositionsHCalEndcap",
+        readoutName=hcalEndcapReadoutName,
+        detectorName="HCalThreePartsEndcap",
+        OutputLevel=INFO
+    )
+    hcalEndcapPositionedCellsName = "HCalEndcapPositionedCells"
+    createHcalEndcapPositionedCells = CreateCaloCellPositionsFCCee(
+        "CreateHcalEndcapPositionedCells",
+        OutputLevel=INFO
+    )
+    createHcalEndcapPositionedCells.positionsTool = cellPositionHcalEndcapTool
+    createHcalEndcapPositionedCells.hits.Path = hcalEndcapCellsName
+    createHcalEndcapPositionedCells.positionedHits.Path = hcalEndcapPositionedCellsName
 
 else:
     hcalBarrelCellsName = "emptyCaloCells"
@@ -742,10 +763,12 @@ else:
 
 if not saveCells:
     out.outputCommands.append("drop ECal*Cells*")
+    out.outputCommands.append("drop HCal*Cells*")
 if not saveClusterCells:
     out.outputCommands.append("drop *ClusterCells*")
 if not saveHits:
     out.outputCommands.append("drop ECal*Hits*")
+    out.outputCommands.append("drop HCal*Hits*")
 
 # out.filename = "root/output_fullCalo_SimAndDigi_withTopoCluster_MagneticField_"+str(magneticField)+"_pMin_"+str(momentum*1000)+"_MeV"+"_ThetaMinMax_"+str(thetaMin)+"_"+str(thetaMax)+"_pdgId_"+str(pdgCode)+"_pythia"+str(use_pythia)+"_Noise"+str(addNoise)+".root"
 out.filename = "./root/output_evts_" + str(Nevts) + "_pdg_" + str(pdgCode) + "_" + str(momentum) + "_GeV" + "_ThetaMinMax_" + str(thetaMin) + "_" + str(
@@ -762,6 +785,9 @@ createEcalBarrelCells.AuditExecute = True
 createEcalBarrelPositionedCells.AuditExecute = True
 if runHCal:
     createHcalBarrelCells.AuditExecute = True
+    createHcalBarrelPositionedCells.AuditExecute = True
+    createHcalEndcapCells.AuditExecute = True
+    createHcalEndcapPositionedCells.AuditExecute = True
 if doTopoClustering:
     createTopoClusters.AuditExecute = True
 out.AuditExecute = True
@@ -793,7 +819,8 @@ if runHCal:
         rewriteHCalBarrel,
         createHcalBarrelCells2,
         createHcalBarrelPositionedCells2,
-        # createHcalEndcapCells
+        createHcalEndcapCells,
+        createHcalEndcapPositionedCells
     ]
 
 if doSWClustering or doTopoClustering:
