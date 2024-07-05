@@ -52,12 +52,11 @@ histNameMean = calo_init.args.histogramNameMean
 
 
 # gStyle.SetImageScaling(3.)
-# gStyle.SetOptFit(1111) # fi you want all fiut info on the preview canvas
+# gStyle.SetOptFit(1111) # if you want all fit info on the preview canvas
 gROOT.SetBatch(kTRUE)
 
 if not os.path.isdir(calo_init.args.outputfolder):
     os.mkdir(calo_init.args.outputfolder)
-
 merge = [sum(calo_init.args.merge[:i])
          for i in range(0, len(calo_init.args.merge))]
 sliceWidth = calo_init.args.layerWidth  # cm
@@ -130,6 +129,8 @@ for ifile, filename in enumerate(calo_init.filenamesIn):
         fitoptions = "SQRN"
     for islice, h in enumerate(hmerged):
         h.Print()
+        tmp_canvas_for_fit = prepare_single_canvas("tmp_canvas_for_fit","tmp_canvas_for_fit")
+
         fitPre = TF1("fitPre", "gaus",
                      h.GetMean() - 1. * h.GetRMS(),
                      h.GetMean() + 1. * h.GetRMS())
@@ -162,7 +163,7 @@ for ifile, filename in enumerate(calo_init.filenamesIn):
                 ifile, energy, result.Get().Parameter(1))
             dict_layer_sfVSenergyGraph[islice].SetPointError(
                 ifile, 0, result.Get().Parameter(2))
-        # draw both singla canvas and one big divided canvas (later is buggy at the moment)
+        # draw both single canvas and one big divided canvas
         if calo_init.args.preview:
             if calo_init.args.theta:
                 tmp_canvas = prepare_single_canvas("theta_%s_" % (energy) + h.GetTitle().replace(
