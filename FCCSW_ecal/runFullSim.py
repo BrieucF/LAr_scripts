@@ -261,19 +261,30 @@ createEcalBarrelPositionedCells.hits.Path = EcalBarrelCellsName
 createEcalBarrelPositionedCells.positionedHits.Path = "ECalBarrelPositionedCells"
 
 
-# Create cells in HCal
+# Create cells in HCal barrel
 # 1. step - merge hits into cells with the default readout
 HcalBarrelCellsName = "HCalBarrelCells"
-createHcalBarrelCells = CreateCaloCells("CreateHCaloCells",
+from Configurables import CreateCaloCells
+createHcalBarrelCells = CreateCaloCells("CreateHCalCells",
                                doCellCalibration=True,
                                calibTool=calibHcells,
-                               addCellNoise = False,
+                               addCellNoise = False, 
                                filterCellNoise = False,
                                addPosition=True,
                                OutputLevel = INFO,
                                hits=hcalBarrelHitsName,
                                cells=HcalBarrelCellsName)
 
+'''
+from Configurables import CellPositionsHCalBarrelTool
+cellPositionHcalBarrelTool = CellPositionsHCalBarrelTool("CellPositionsHCalBarrel", readoutName = hcalBarrelReadoutName, OutputLevel = INFO)
+createHcalBarrelPositionedCells = CreateCaloCellPositionsFCCee("HCalBarrelPositionedCells", OutputLevel = INFO)
+createHcalBarrelPositionedCells.positionsHCalBarrelTool = cellPositionHcalBarrelTool
+createHcalBarrelPositionedCells.hits.Path = HcalBarrelCellsName
+createHcalBarrelPositionedCells.positionedHits.Path = "HCalBarrelPositionedCells"
+''' 
+
+#Create cells in HCal Endcap
 HcalEndcapCellsName = "HCalEndcapCells"
 createHcalEndcapCells = CreateCaloCells("CreateHcalEndcapCaloCells",
                                     doCellCalibration=True,
@@ -284,15 +295,6 @@ createHcalEndcapCells = CreateCaloCells("CreateHcalEndcapCaloCells",
                                     hits=hcalEndcapHitsName,
                                     cells=HcalEndcapCellsName)
 
-"""
-from Configurables import CellPositionsHCalBarrelTool
-cellPositionHcalBarrelTool = CellPositionsHCalBarrelTool("CellPositionsHCalBarrel", readoutName = hcalBarrelReadoutName, OutputLevel = INFO)
-createHcalBarrelPositionedCells = CreateCaloCellPositionsFCCee("HCalBarrelPositionedCells", OutputLevel = INFO)
-createHcalBarrelPositionedCells.positionsHCalBarrelTool = cellPositionHcalBarrelTool
-createHcalBarrelPositionedCells.hits.Path = HcalBarrelCellsName
-HCalBarrelPositionedCellsName = "HCalBarrelPositionedCellsName"
-createHcalBarrelPositionedCells.positionedHits.Path = "HCalBarrelPositionedCells"
-"""
 EcalEndcapCellsName = "ECalEndcapCells"
 createEcalEndcapCells = CreateCaloCells("CreateEcalEndcapCaloCells",
                                     doCellCalibration=True,
@@ -361,18 +363,24 @@ createEcalBarrelPositionedCaloClusterCells.positionsTool = cellPositionEcalBarre
 createEcalBarrelPositionedCaloClusterCells.hits.Path = "CaloClusterCells"
 createEcalBarrelPositionedCaloClusterCells.positionedHits.Path = "PositionedCaloClusterCells"
 
+# At the moment, it is possible to run apply one cluster correction at the time: upstream / downstream / benchmark
 from Configurables import CorrectCaloClusters
 correctCaloClusters = CorrectCaloClusters("correctCaloClusters",
                                           inClusters = createClusters.clusters.Path,
                                           outClusters = "Corrected"+createClusters.clusters.Path,
-                                          numLayers = [12],
-                                          firstLayerIDs = [0],
-                                          lastLayerIDs = [11],
-                                          readoutNames = [ecalBarrelReadoutNamePhiEta],
+                                          numLayers = [12,13],
+                                          firstLayerIDs = [0,0],
+                                          lastLayerIDs = [11,12],
+                                          readoutNames = [ecalBarrelReadoutNamePhiEta,hcalBarrelReadoutName],
                                           upstreamParameters = [[0.033955208567442975, -3.818122686176795, -146.59497297249345, 0.563447903447204, -3.7906629536351906, -8.569962044554627]],
                                           upstreamFormulas = [['[0]+[1]/(x-[2])', '[0]+[1]/(x-[2])']],
                                           downstreamParameters = [[-0.00357017357914002, 0.006624434345822984, 1.0065650241358008, -1.285181650875406, -0.0707783194915608, 12.907319280196257]],
                                           downstreamFormulas = [['[0]+[1]*x', '[0]+[1]/sqrt(x)', '[0]+[1]/x']],
+                                          benchmarkParameters = [2.4, 1.053, -5.27, 0.9503, -0.26, 0.0004], 
+                                          benchmarkFormulas = ['[0]/sqrt(x)+[1]', '[0]/x+[1]', '[0]/x+[1]'],
+                                          upstreamCorr = False,
+                                          downstreamCorr = False, 
+                                          benchmarkCorr = True, 
                                           OutputLevel = INFO
                                           )
 
