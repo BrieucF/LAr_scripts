@@ -1,5 +1,4 @@
 from Configurables import ApplicationMgr
-from Configurables import EventCounter
 from Configurables import PodioOutput
 from Configurables import AuditorSvc, ChronoAuditor
 from Configurables import SamplingFractionInLayers
@@ -116,11 +115,8 @@ out = PodioOutput("out", OutputLevel=INFO)
 out.outputCommands = ["drop *"]
 out.filename = "fccee_samplingFraction_inclinedEcal.root"
 
-event_counter = EventCounter('event_counter')
-event_counter.Frequency = 10
-
 # ApplicationMgr
-ApplicationMgr(TopAlg=[event_counter, genalg_pgun, hepmc_converter, geantsim, hist, out],
+ApplicationMgr(TopAlg=[genalg_pgun, hepmc_converter, geantsim, hist, out],
                EvtSel='NONE',
                EvtMax=100,
                # order is important, as GeoSvc is needed by G4SimSvc

@@ -216,14 +216,9 @@ out = PodioOutput("out",OutputLevel=INFO)
 out.outputCommands = ["keep *", "drop ECalBarrel*", "drop emptyCaloCells"]
 out.filename = "fccee_deadMaterial_inclinedEcal.root"
 
-from Configurables import EventCounter
-event_counter = EventCounter('event_counter')
-event_counter.Frequency = 10
-
 # ApplicationMgr
 from Configurables import ApplicationMgr
 ApplicationMgr( TopAlg = [
-    event_counter,
     genalg_pgun,
     hepmc_converter,
     geantsim,

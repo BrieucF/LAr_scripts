@@ -456,14 +456,9 @@ cell_creator_to_use.AuditExecute = True
 createTopoClusters.AuditExecute = True 
 out.AuditExecute = True
 
-from Configurables import EventCounter
-event_counter = EventCounter('event_counter')
-event_counter.Frequency = 10
-
 from Configurables import ApplicationMgr
 ApplicationMgr(
     TopAlg = [
-              event_counter,
               genAlg,
               hepmc_converter,
               geantsim,
