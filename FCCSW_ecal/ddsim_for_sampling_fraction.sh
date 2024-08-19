@@ -1,0 +1,1 @@
+ddsim --enableGun --gun.distribution uniform --gun.energy "10*GeV" --gun.particle e- --gun.thetaMin "55*degree" --gun.thetaMax "125*degree" --numberOfEvents 10000 --outputFile ALLEGRO_calibration_sim.root --compactFile $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/DectEmptyMaster.xml $K4GEO/FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ECalBarrel_thetamodulemerged_calibration.xml

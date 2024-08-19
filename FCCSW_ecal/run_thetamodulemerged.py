@@ -1,18 +1,12 @@
+#
+# IMPORTS
+#
 from Configurables import ApplicationMgr
 from Configurables import EventCounter
 from Configurables import AuditorSvc, ChronoAuditor
-from Configurables import PodioOutput
-from Configurables import CaloTowerToolFCCee
-from Configurables import CreateCaloClustersSlidingWindowFCCee
-from Configurables import CorrectCaloClusters
-from Configurables import CalibrateCaloClusters
-from Configurables import CreateEmptyCaloCellsCollection
-from Configurables import CreateCaloCellPositionsFCCee
-from Configurables import CellPositionsECalBarrelModuleThetaSegTool
-from Configurables import RedoSegmentation
-from Configurables import CreateCaloCells
-from Configurables import CalibrateCaloHitsTool
-from Configurables import CalibrateInLayersTool
+# Event generation
+from Configurables import GenAlg
+# G4 simulation
 from Configurables import SimG4Alg
 from Configurables import SimG4PrimariesFromEdmTool
 from Configurables import SimG4SaveCalHits
@@ -20,49 +14,95 @@ from Configurables import SimG4ConstantMagneticFieldTool
 from Configurables import SimG4Svc
 from Configurables import SimG4FullSimActions
 from Configurables import SimG4SaveParticleHistory
+# Geometry
 from Configurables import GeoSvc
-from Configurables import HepMCToEDMConverter
-from Configurables import GenAlg
+# Input/output
 from Configurables import FCCDataSvc
+from Configurables import PodioOutput
+from Configurables import HepMCToEDMConverter
+# Create cells
+from Configurables import CreateCaloCells
+from Configurables import CreateEmptyCaloCellsCollection
+# Cell positioning tools
+from Configurables import CreateCaloCellPositionsFCCee
+from Configurables import CellPositionsECalBarrelModuleThetaSegTool
+# Redo segmentation for ECAL and HCAL
+from Configurables import RedoSegmentation
+# Read noise values from file and generate noise in cells
+from Configurables import NoiseCaloCellsVsThetaFromFileTool
+# Apply sampling fraction corrections
+from Configurables import CalibrateCaloHitsTool
+from Configurables import CalibrateInLayersTool
+# Up/down stream correction
+from Configurables import CorrectCaloClusters
+# SW clustering
+from Configurables import CaloTowerToolFCCee
+from Configurables import CreateCaloClustersSlidingWindowFCCee
+# Topo clustering
 from Configurables import CaloTopoClusterInputTool
 from Configurables import TopoCaloNeighbours
 from Configurables import TopoCaloNoisyCells
 from Configurables import CaloTopoClusterFCCee
-from Configurables import RewriteBitfield
-from Gaudi.Configuration import INFO
-# , VERBOSE, DEBUG
-# from Gaudi.Configuration import *
-
-import os
-
+# Decorate clusters with shower shape parameters
+from Configurables import AugmentClustersFCCee
+# MVA calibration
+from Configurables import CalibrateCaloClusters
+# Logger
+from Gaudi.Configuration import INFO, VERBOSE, DEBUG
+# Units and physical constants
 from GaudiKernel.SystemOfUnits import GeV, tesla, mm
 from GaudiKernel.PhysicalConstants import pi, halfpi, twopi
+# python libraries
+import os
 from math import cos, sin, tan
 
-use_pythia = False
-addNoise = False
-dumpGDML = False
-runHCal = False
+#
+# SETTINGS
+#
+
+# - general settings
+#
+use_pythia = False  # use pythia or particle gun
+addNoise = False     # add noise or not to the cell energy
+dumpGDML = False    # create GDML file of detector model
+runHCal = False     # simulate only the ECAL or both ECAL+HCAL
+
+# - what to save in output file
+#
 # for big productions, save significant space removing hits and cells
 # however, hits and cluster cells might be wanted for small productions for detailed event displays
 # also, cluster cells are needed for the MVA training
-saveHits = False
-saveCells = False
+saveHits = True
+saveCells = True
 saveClusterCells = True
+
+# - clustering
+#
+doSWClustering = True
+doTopoClustering = True
 
 # cluster energy corrections
 # simple parametrisations of up/downstream losses
-applyUpDownstreamCorrections = True
-# BDT regression from total cluster energy and fraction of energy in each layer (after correction for sampling fraction)
-applyMVAClusterEnergyCalibration = True
+# not to be applied for ECAL+HCAL clustering
+applyUpDownstreamCorrections = True and not runHCal
 
-# Input for simulations (momentum is expected in GeV!)
+# BDT regression from total cluster energy and fraction of energy in each layer (after correction for sampling fraction)
+# not to be applied for ECAL+HCAL clustering (MVA trained only on ECAL)
+applyMVAClusterEnergyCalibration = False and not runHCal
+
+# calculate cluster energy and barycenter per layer and save it as extra parameters
+addShapeParameters = True and not runHCal
+
+# - input for simulations (momentum is expected in GeV!)
+#
+
 # Parameters for the particle gun simulations, dummy if use_pythia is set
 # to True
 # theta from 80 to 100 degrees corresponds to -0.17 < eta < 0.17
 # reminder: cell granularity in theta = 0.5625 degrees
 # (in strips: 0.5625/4=0.14)
 
+# number of events to simulate
 # Nevts = 20000
 Nevts = 10
 # Nevts = 1
@@ -72,8 +112,8 @@ Nevts = 10
 # momentum = 100  # in GeV
 momentum = 50  # in GeV
 # momentum = 10  # in GeV
-thetaMin = 50  # degrees
-thetaMax = 130  # degrees
+thetaMin = 45  # degrees
+thetaMax = 135  # degrees
 # thetaMin = 89
 # thetaMax = 91
 # thetaMin = 90  # degrees
@@ -90,8 +130,8 @@ origTheta = halfpi
 origPhi = 0.0
 
 # particle type: 11 electron, 13 muon, 22 photon, 111 pi0, 211 pi+
-pdgCode = 11
-# pdgCode = 22
+# pdgCode = 11
+pdgCode = 22
 # pdgCode = 111
 # pdgCode = 211
 
@@ -101,13 +141,17 @@ saveG4Hist = False
 if (pdgCode == 111):
     saveG4Hist = True
 
+# turn on/off B field
 magneticField = False
 
+
+#
+# ALGORITHMS AND SERVICES SETUP
+#
 
 podioevent = FCCDataSvc("EventDataSvc")
 
 # Particle gun setup
-
 genAlg = GenAlg()
 if use_pythia:
     from Configurables import PythiaInterface
@@ -166,7 +210,7 @@ geoservice = GeoSvc("GeoSvc")
 path_to_detector = os.environ.get("K4GEO", "")
 print(path_to_detector)
 detectors_to_use = [
-    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v02/ALLEGRO_o1_v02.xml'
+    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml'
 ]
 # prefix all xmls with path_to_detector
 geoservice.detectors = [
@@ -177,7 +221,6 @@ geoservice.OutputLevel = INFO
 # Geant4 service
 # Configures the Geant simulation: geometry, physics list and user actions
 actions = SimG4FullSimActions()
-
 if saveG4Hist:
     actions.enableHistory = True
     actions.energyCut = 1.0 * GeV
@@ -190,7 +233,7 @@ geantservice = SimG4Svc(
     actions=actions
 )
 
-# from Configurables import GeoToGdmlDumpSvc
+# write GDML with detector model
 if dumpGDML:
     from Configurables import GeoToGdmlDumpSvc
     gdmldumpservice = GeoToGdmlDumpSvc("GeoToGdmlDumpSvc")
@@ -205,7 +248,7 @@ geantservice.seedValue = 4242
 # Range cut
 geantservice.g4PreInitCommands += ["/run/setCut 0.1 mm"]
 
-# Magnetic field
+# Set magnetic field
 if magneticField == 1:
     field = SimG4ConstantMagneticFieldTool(
         "SimG4ConstantMagneticFieldTool",
@@ -225,20 +268,21 @@ else:
 
 # Detector readouts
 # ECAL
-ecalBarrelReadoutName = "ECalBarrelModuleThetaMerged"
-ecalBarrelReadoutName2 = "ECalBarrelModuleThetaMerged2"
-ecalEndcapReadoutName = "ECalEndcapPhiEta"
+ecalBarrelReadoutName = "ECalBarrelModuleThetaMerged"  # barrel, original segmentation (baseline)
+ecalBarrelReadoutName2 = "ECalBarrelModuleThetaMerged2"  # barrel, after re-segmentation (for optimisation studies)
+ecalEndcapReadoutName = "ECalEndcapTurbine"  # endcap, turbine-like (baseline)
 # HCAL
 if runHCal:
-    hcalBarrelReadoutName = "HCalBarrelReadout"
-    hcalBarrelReadoutName2 = "BarHCal_Readout_phitheta"
-    hcalEndcapReadoutName = "HCalEndcapReadout"
+    hcalBarrelReadoutName = "HCalBarrelReadout"  # barrel, layer-row-theta-phi based (can be used to fill various cell collections with different readouts)
+    hcalBarrelReadoutName2 = "BarHCal_Readout_phitheta"  # barrel, layer-theta-phi based, groups tiles from different rows together (baseline)
+    hcalEndcapReadoutName = "HCalEndcapReadout"  # endcap
 else:
     hcalBarrelReadoutName = ""
     hcalBarrelReadoutName2 = ""
     hcalEndcapReadoutName = ""
 
-# Configure saving of calorimeter hits
+# Configure saving of calorimeter positioned hits
+# - ECAL barrel
 ecalBarrelHitsName = "ECalBarrelPositionedHits"
 saveECalBarrelTool = SimG4SaveCalHits(
     "saveECalBarrelHits",
@@ -247,20 +291,25 @@ saveECalBarrelTool = SimG4SaveCalHits(
 )
 saveECalBarrelTool.CaloHits.Path = ecalBarrelHitsName
 
+# - ECAL encap
 saveECalEndcapTool = SimG4SaveCalHits(
     "saveECalEndcapHits",
-    readoutName=ecalEndcapReadoutName
+    readoutName=ecalEndcapReadoutName,
+    OutputLevel=INFO
 )
 saveECalEndcapTool.CaloHits.Path = "ECalEndcapHits"
 
 if runHCal:
+    # - HCAL barrel
     hcalBarrelHitsName = "HCalBarrelPositionedHits"
     saveHCalTool = SimG4SaveCalHits(
         "saveHCalBarrelHits",
-        readoutName=hcalBarrelReadoutName
+        readoutName=hcalBarrelReadoutName,
+        OutputLevel=INFO
     )
     saveHCalTool.CaloHits.Path = hcalBarrelHitsName
 
+    # - HCAL endcap
     # saveHCalEndcapTool = SimG4SaveCalHits(
     #    "saveHCalEndcapHits",
     #    readoutName = hcalEndcapReadoutName
@@ -291,16 +340,21 @@ geantsim = SimG4Alg("SimG4Alg",
 
 # Digitization (Merging hits into cells, EM scale calibration)
 # EM scale calibration (sampling fraction)
+# - ECAL barrel
 calibEcalBarrel = CalibrateInLayersTool("CalibrateECalBarrel",
-                                        samplingFraction=[0.3864252122990472] * 1 + [0.13597644835735828] * 1 + [0.14520427829645913] * 1 + [0.1510076084632846] * 1 + [0.1552347580991012] * 1 + [0.159694330729184] * 1 + [0.1632954482794191] * 1 + [0.16720711037339814] * 1 + [0.17047749048884808] * 1 + [0.17461698117974286] * 1 + [0.1798984163980135] * 1 + [0.17920355117405806] * 1,
+                                        samplingFraction=[0.3775596654349802] * 1 + [0.13400227700041234] * 1 + [0.14390509963164044] * 1 + [0.14998482026270935] * 1 + [0.15457673722531148] * 1 + [0.15928098152159675] * 1 + [0.1635367867767212] * 1 + [0.16801070646031507] * 1 + [0.1713409944779989] * 1 + [0.17580195406064622] * 1 + [0.17966699467772812] * 1,
                                         readoutName=ecalBarrelReadoutName,
                                         layerFieldName="layer")
 
+# - ECAL endcap (TO BE UPDATED)
 calibEcalEndcap = CalibrateCaloHitsTool(
     "CalibrateECalEndcap", invSamplingFraction="4.27")
+
 if runHCal:
+    # - HCAL barrel
     calibHcells = CalibrateCaloHitsTool(
         "CalibrateHCal", invSamplingFraction="31.4")
+    # - HCAL endcap
     calibHcalEndcap = CalibrateCaloHitsTool(
         "CalibrateHCalEndcap", invSamplingFraction="31.7")
 
@@ -351,7 +405,6 @@ createEcalBarrelCells2 = CreateCaloCells("CreateECalBarrelCells2",
 
 # Add to Ecal barrel cells the position information
 # (good for physics, all coordinates set properly)
-
 cellPositionEcalBarrelTool = CellPositionsECalBarrelModuleThetaSegTool(
     "CellPositionsECalBarrel",
     readoutName=ecalBarrelReadoutName,
@@ -390,8 +443,57 @@ createEcalEndcapCells = CreateCaloCells("CreateEcalEndcapCaloCells",
 createEcalEndcapCells.hits.Path = "ECalEndcapHits"
 createEcalEndcapCells.cells.Path = "ECalEndcapCells"
 
+if addNoise:
+    ecalBarrelNoisePath = os.environ['FCCBASEDIR']+"/LAr_scripts/data/elecNoise_ecalBarrelFCCee_theta.root"
+    ecalBarrelNoiseRMSHistName = "h_elecNoise_fcc_"
+    from Configurables import NoiseCaloCellsVsThetaFromFileTool
+    noiseBarrel = NoiseCaloCellsVsThetaFromFileTool("NoiseBarrel",
+                                                    cellPositionsTool=cellPositionEcalBarrelTool,
+                                                    readoutName=ecalBarrelReadoutName,
+                                                    noiseFileName=ecalBarrelNoisePath,
+                                                    elecNoiseRMSHistoName=ecalBarrelNoiseRMSHistName,
+                                                    setNoiseOffset=False,
+                                                    activeFieldName="layer",
+                                                    addPileup=False,
+                                                    filterNoiseThreshold=0,
+                                                    numRadialLayers=11,
+                                                    scaleFactor=1 / 1000.,  # MeV to GeV
+                                                    OutputLevel=DEBUG)
+
+    # needs to be migrated!
+    #from Configurables import TubeLayerPhiEtaCaloTool
+    #barrelGeometry = TubeLayerPhiEtaCaloTool("EcalBarrelGeo",
+    #                                         readoutName=ecalBarrelReadoutNamePhiEta,
+    #                                         activeVolumeName="LAr_sensitive",
+    #                                         activeFieldName="layer",
+    #                                         activeVolumesNumber=12,
+    #                                         fieldNames=["system"],
+    #                                         fieldValues=[4])
+    
+    # cells with noise not filtered
+    # createEcalBarrelCellsNoise = CreateCaloCells("CreateECalBarrelCellsNoise",
+    #                                              doCellCalibration=False,
+    #                                              addCellNoise=True,
+    #                                              filterCellNoise=False,
+    #                                              OutputLevel=INFO,
+    #                                              hits="ECalBarrelCellsStep2",
+    #                                              noiseTool=noiseBarrel,
+    #                                              geometryTool=barrelGeometry,
+    #                                              cells=EcalBarrelCellsName)
+
+    # cells with noise filtered
+    # createEcalBarrelCellsNoise = CreateCaloCells("CreateECalBarrelCellsNoise_filtered",
+    #                                              doCellCalibration=False,
+    #                                              addCellNoise=True,
+    #                                              filterCellNoise=True,
+    #                                              OutputLevel=INFO,
+    #                                              hits="ECalBarrelCellsStep2",
+    #                                              noiseTool=noiseBarrel,
+    #                                              geometryTool=barrelGeometry,
+    #                                              cells=EcalBarrelCellsName)
+
 if runHCal:
-    # Create cells in HCal
+    # Create cells in HCal barrel
     # 1 - merge hits into cells with the default readout
     hcalBarrelCellsName = "HCalBarrelCells"
     createHcalBarrelCells = CreateCaloCells("CreateHCalBarrelCells",
@@ -404,7 +506,7 @@ if runHCal:
                                             cells=hcalBarrelCellsName,
                                             OutputLevel=INFO)
 
-    # 2 - attach positions to the cells
+    # 2 - attach positions to the cells (cell positions needed for RedoSegmentation!)
     from Configurables import CellPositionsHCalBarrelPhiThetaSegTool
     cellPositionHcalBarrelTool = CellPositionsHCalBarrelPhiThetaSegTool(
         "CellPositionsHCalBarrel",
@@ -421,19 +523,33 @@ if runHCal:
     createHcalBarrelPositionedCells.positionedHits.Path = hcalBarrelPositionedCellsName
 
     # 3 - compute new cellID of cells based on new readout - removing row information
+    # We use a RedoSegmentation. Using a RewriteBitField with removeIds=["row"],
+    # wont work because there are tiles with same layer/theta/phi but different row
+    # as a consequence there will be multiple cells with same cellID in the output collection
+    # and this will screw up the SW clustering
     hcalBarrelCellsName2 = "HCalBarrelCells2"
-    rewriteHCalBarrel = RewriteBitfield("RewriteHCalBarrel",
-                                        # old bitfield (readout)
-                                        oldReadoutName=hcalBarrelReadoutName,
-                                        # specify which fields are going to be deleted
-                                        removeIds=["row"],
-                                        # new bitfield (readout), with new segmentation
-                                        newReadoutName=hcalBarrelReadoutName2,
-                                        debugPrint=10,
-                                        OutputLevel=INFO)
-    # clusters are needed, with deposit position and cellID in bits
-    rewriteHCalBarrel.inhits.Path = hcalBarrelCellsName
-    rewriteHCalBarrel.outhits.Path = hcalBarrelCellsName2
+
+    # first we create new hits with the readout without the row information
+    # and then merge them into new cells
+    rewriteHCalBarrel = RedoSegmentation("ReSegmentationHcal",
+                                         # old bitfield (readout)
+                                         oldReadoutName=hcalBarrelReadoutName,
+                                         # specify which fields are going to be altered (deleted/rewritten)
+                                         oldSegmentationIds=["row", "theta", "phi"],
+                                         # new bitfield (readout), with new segmentation (theta-phi grid)
+                                         newReadoutName=hcalBarrelReadoutName2,
+                                         OutputLevel=INFO,
+                                         debugPrint=200,
+                                         inhits=hcalBarrelPositionedCellsName,
+                                         outhits="HCalBarrelCellsWithoutRow")
+
+    createHcalBarrelCells2 = CreateCaloCells("CreateHCalBarrelCells2",
+                                             doCellCalibration=False,
+                                             addCellNoise=False,
+                                             filterCellNoise=False,
+                                             OutputLevel=INFO,
+                                             hits=rewriteHCalBarrel.outhits.Path,
+                                             cells=hcalBarrelCellsName2)
 
     # 4 - attach positions to the new cells
     from Configurables import CellPositionsHCalBarrelPhiThetaSegTool
@@ -451,6 +567,7 @@ if runHCal:
     createHcalBarrelPositionedCells2.hits.Path = hcalBarrelCellsName2
     createHcalBarrelPositionedCells2.positionedHits.Path = hcalBarrelPositionedCellsName2
 
+    # Create cells in HCal endcap
     # createHcalEndcapCells = CreateCaloCells("CreateHcalEndcapCaloCells",
     #                                    doCellCalibration=True,
     #                                    calibTool=calibHcalEndcap,
@@ -460,6 +577,8 @@ if runHCal:
     # createHcalEndcapCells.hits.Path="HCalEndcapHits"
     # createHcalEndcapCells.cells.Path="HCalEndcapCells"
 
+    # TODO: noise...
+    
 else:
     hcalBarrelCellsName = "emptyCaloCells"
     hcalBarrelPositionedCellsName = "emptyCaloCells"
@@ -472,190 +591,231 @@ else:
 createemptycells = CreateEmptyCaloCellsCollection("CreateEmptyCaloCells")
 createemptycells.cells.Path = "emptyCaloCells"
 
-# Produce sliding window clusters (ECAL only)
-towers = CaloTowerToolFCCee("towers",
-                            deltaThetaTower=4 * 0.009817477 / 4, deltaPhiTower=2 * 2 * pi / 1536.,
-                            ecalBarrelReadoutName=ecalBarrelReadoutName,
-                            ecalEndcapReadoutName=ecalEndcapReadoutName,
-                            ecalFwdReadoutName="",
-                            hcalBarrelReadoutName="",
-                            hcalExtBarrelReadoutName="",
-                            hcalEndcapReadoutName="",
-                            hcalFwdReadoutName="",
-                            OutputLevel=INFO)
-towers.ecalBarrelCells.Path = ecalBarrelPositionedCellsName
-towers.ecalEndcapCells.Path = "ECalEndcapCells"
-towers.ecalFwdCells.Path = "emptyCaloCells"
+# Produce sliding window clusters
+if doSWClustering:
+    towers = CaloTowerToolFCCee("towers",
+                                deltaThetaTower=4 * 0.009817477 / 4, deltaPhiTower=2 * 2 * pi / 1536.,
+                                ecalBarrelReadoutName=ecalBarrelReadoutName,
+                                ecalEndcapReadoutName=ecalEndcapReadoutName,
+                                ecalFwdReadoutName="",
+                                hcalBarrelReadoutName=hcalBarrelReadoutName2,
+                                hcalExtBarrelReadoutName="",
+                                hcalEndcapReadoutName="",
+                                hcalFwdReadoutName="",
+                                OutputLevel=INFO)
+    towers.ecalBarrelCells.Path = ecalBarrelPositionedCellsName
+    towers.ecalEndcapCells.Path = "ECalEndcapCells"
+    towers.ecalFwdCells.Path = "emptyCaloCells"
+    towers.hcalBarrelCells.Path = hcalBarrelPositionedCellsName2
+    towers.hcalExtBarrelCells.Path = "emptyCaloCells"
+    towers.hcalEndcapCells.Path = "emptyCaloCells"
+    towers.hcalFwdCells.Path = "emptyCaloCells"
 
-towers.hcalBarrelCells.Path = "emptyCaloCells"
-towers.hcalExtBarrelCells.Path = "emptyCaloCells"
-towers.hcalEndcapCells.Path = "emptyCaloCells"
-towers.hcalFwdCells.Path = "emptyCaloCells"
+    # Cluster variables
+    windT = 9
+    windP = 17
+    posT = 5
+    posP = 11
+    dupT = 7
+    dupP = 13
+    finT = 9
+    finP = 17
+    # Minimal energy to create a cluster in GeV (FCC-ee detectors have to reconstruct low energy particles)
+    threshold = 0.040
 
-# Cluster variables
-windT = 9
-windP = 17
-posT = 5
-posP = 11
-dupT = 7
-dupP = 13
-finT = 9
-finP = 17
-# Minimal energy to create a cluster in GeV (FCC-ee detectors have to reconstruct low energy particles)
-threshold = 0.040
+    createClusters = CreateCaloClustersSlidingWindowFCCee("CreateClusters",
+                                                          towerTool=towers,
+                                                          nThetaWindow=windT, nPhiWindow=windP,
+                                                          nThetaPosition=posT, nPhiPosition=posP,
+                                                          nThetaDuplicates=dupT, nPhiDuplicates=dupP,
+                                                          nThetaFinal=finT, nPhiFinal=finP,
+                                                          energyThreshold=threshold,
+                                                          energySharingCorrection=False,
+                                                          attachCells=True,
+                                                          OutputLevel=INFO
+                                                          )
+    createClusters.clusters.Path = "CaloClusters"
+    createClusters.clusterCells.Path = "CaloClusterCells"
 
-createClusters = CreateCaloClustersSlidingWindowFCCee("CreateClusters",
-                                                      towerTool=towers,
-                                                      nThetaWindow=windT, nPhiWindow=windP,
-                                                      nThetaPosition=posT, nPhiPosition=posP,
-                                                      nThetaDuplicates=dupT, nPhiDuplicates=dupP,
-                                                      nThetaFinal=finT, nPhiFinal=finP,
-                                                      energyThreshold=threshold,
-                                                      energySharingCorrection=False,
-                                                      attachCells=True,
-                                                      OutputLevel=INFO
-                                                      )
-createClusters.clusters.Path = "CaloClusters"
-createClusters.clusterCells.Path = "CaloClusterCells"
-
-correctCaloClusters = CorrectCaloClusters("correctCaloClusters",
-                                          inClusters=createClusters.clusters.Path,
-                                          outClusters="Corrected" + createClusters.clusters.Path,
-                                          numLayers=[12],
-                                          firstLayerIDs=[0],
-                                          lastLayerIDs=[11],
-                                          readoutNames=[ecalBarrelReadoutName],
-                                          # do not split the following line or it will break scripts that update the values of the corrections
-                                          upstreamParameters = [[0.03900891447361534, -4.322941016402328, -139.1811369546787, 0.498342628339746, -3.3545078429754813, -13.99996971344221]],
-                                          upstreamFormulas=[
-                                              ['[0]+[1]/(x-[2])', '[0]+[1]/(x-[2])']],
-                                          # do not split the following line or it will break scripts that update the values of the corrections
-                                          downstreamParameters = [[-0.0027661744480442195, 0.006059143775380306, 0.9788596364251927, -1.4951749409378743, -0.08491999337012696, 16.017621428757778]],
-                                          downstreamFormulas=[
-                                              ['[0]+[1]*x', '[0]+[1]/sqrt(x)', '[0]+[1]/x']],
-                                          OutputLevel=INFO
-                                          )
-
-calibrateCaloClusters = CalibrateCaloClusters("calibrateCaloClusters",
-                                              inClusters=createClusters.clusters.Path,
-                                              outClusters="Calibrated" + createClusters.clusters.Path,
-                                              systemIDs=[4],
-                                              numLayers=[12],
-                                              firstLayerIDs=[0],
-                                              readoutNames=[
-                                                  ecalBarrelReadoutName],
-                                              layerFieldNames=["layer"],
-                                              calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/lgbm_calibration-CaloClusters.onnx",
-                                              # calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/xgb_calibration-CaloClusters.onnx",
-                                              OutputLevel=INFO
-                                              )
-
-# TOPO CLUSTERS PRODUCTION
-createTopoInput = CaloTopoClusterInputTool("CreateTopoInput",
-                                           ecalBarrelReadoutName=ecalBarrelReadoutName,
-                                           ecalEndcapReadoutName="",
-                                           ecalFwdReadoutName="",
-                                           hcalBarrelReadoutName=hcalBarrelReadoutName2,
-                                           hcalExtBarrelReadoutName="",
-                                           hcalEndcapReadoutName="",
-                                           hcalFwdReadoutName="",
-                                           OutputLevel=INFO)
-
-createTopoInput.ecalBarrelCells.Path = ecalBarrelPositionedCellsName
-createTopoInput.ecalEndcapCells.Path = "emptyCaloCells"
-createTopoInput.ecalFwdCells.Path = "emptyCaloCells"
-createTopoInput.hcalBarrelCells.Path = hcalBarrelPositionedCellsName2
-createTopoInput.hcalExtBarrelCells.Path = "emptyCaloCells"
-createTopoInput.hcalEndcapCells.Path = "emptyCaloCells"
-createTopoInput.hcalFwdCells.Path = "emptyCaloCells"
-cellPositionHcalBarrelNoSegTool = None
-cellPositionHcalExtBarrelTool = None
-
-neighboursMap = "/LAr_scripts/data/neighbours_map_barrel_thetamodulemerged.root"
-noiseMap = "/LAr_scripts/data/cellNoise_map_electronicsNoiseLevel_thetamodulemerged.root"
-if runHCal:
-    neighboursMap = "/LAr_scripts/data/neighbours_map_ecalB_thetamodulemerged_hcalB_thetaphi.root"
-    noiseMap = "/LAr_scripts/data/cellNoise_map_electronicsNoiseLevel_ecalB_thetamodulemerged_hcalB_thetaphi.root"
-
-readNeighboursMap = TopoCaloNeighbours("ReadNeighboursMap",
-                                       fileName=os.environ['FCCBASEDIR'] + neighboursMap,
-                                       OutputLevel=INFO)
-
-# Noise levels per cell
-readNoisyCellsMap = TopoCaloNoisyCells("ReadNoisyCellsMap",
-                                       fileName=os.environ['FCCBASEDIR'] + noiseMap,
-                                       OutputLevel=INFO)
-
-createTopoClusters = CaloTopoClusterFCCee("CreateTopoClusters",
-                                          TopoClusterInput=createTopoInput,
-                                          # expects neighbours map from cellid->vec < neighbourIds >
-                                          neigboursTool=readNeighboursMap,
-                                          # tool to get noise level per cellid
-                                          noiseTool=readNoisyCellsMap,
-                                          # cell positions tools for all sub - systems
-                                          positionsECalBarrelTool=cellPositionEcalBarrelTool,
-                                          positionsHCalBarrelTool=cellPositionHcalBarrelTool2,
-                                          # positionsHCalBarrelNoSegTool=cellPositionHcalBarrelNoSegTool,
-                                          # positionsHCalExtBarrelTool=cellPositionHcalExtBarrelTool,
-                                          # positionsHCalExtBarrelTool = HCalExtBcells,
-                                          # positionsEMECTool = EMECcells,
-                                          # positionsHECTool = HECcells,
-                                          # positionsEMFwdTool = ECalFwdcells,
-                                          # positionsHFwdTool = HCalFwdcells,
-                                          noSegmentationHCal=False,
-                                          seedSigma=4,
-                                          neighbourSigma=2,
-                                          lastNeighbourSigma=0,
-                                          OutputLevel=INFO)
-createTopoClusters.clusters.Path = "CaloTopoClusters"
-createTopoClusters.clusterCells.Path = "CaloTopoClusterCells"
-
-
-# Correction below is for EM-only clusters
-# What to do for EM+HAD topoclusters?
-correctCaloTopoClusters = CorrectCaloClusters(
-    "correctCaloTopoClusters",
-    inClusters=createTopoClusters.clusters.Path,
-    outClusters="Corrected" + createTopoClusters.clusters.Path,
-    numLayers=[12],
-    firstLayerIDs=[0],
-    lastLayerIDs=[11],
-    readoutNames=[ecalBarrelReadoutName],
-    # do not split the following line or it will break scripts that update the values of the corrections
-    upstreamParameters = [[0.03900891447361534, -4.322941016402328, -139.1811369546787, 0.498342628339746, -3.3545078429754813, -13.99996971344221]],
-    upstreamFormulas=[['[0]+[1]/(x-[2])', '[0]+[1]/(x-[2])']],
-    # do not split the following line or it will break scripts that update the values of the corrections
-    downstreamParameters = [[-0.0027661744480442195, 0.006059143775380306, 0.9788596364251927, -1.4951749409378743, -0.08491999337012696, 16.017621428757778]],
-    downstreamFormulas=[['[0]+[1]*x', '[0]+[1]/sqrt(x)', '[0]+[1]/x']],
-    OutputLevel=INFO
-)
-
-calibrateCaloTopoClusters = CalibrateCaloClusters("calibrateCaloTopoClusters",
-                                                  inClusters=createTopoClusters.clusters.Path,
-                                                  outClusters="Calibrated" + createTopoClusters.clusters.Path,
-                                                  systemIDs=[4],
-                                                  numLayers=[12],
+    if applyUpDownstreamCorrections:
+        correctCaloClusters = CorrectCaloClusters("correctCaloClusters",
+                                                  inClusters=createClusters.clusters.Path,
+                                                  outClusters="Corrected" + createClusters.clusters.Path,
+                                                  numLayers=[11],
                                                   firstLayerIDs=[0],
-                                                  readoutNames=[
-                                                      ecalBarrelReadoutName],
-                                                  layerFieldNames=["layer"],
-                                                  calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/lgbm_calibration-CaloTopoClusters.onnx",
-                                                  # calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/xgb_calibration-CaloTopoClusters.onnx",
+                                                  lastLayerIDs=[10],
+                                                  systemIDs=[4],
+                                                  readoutNames=[ecalBarrelReadoutName],
+                                                  # do not split the following line or it will break scripts that update the values of the corrections
+                                                  upstreamParameters = [[0.025582045561310333, -0.9524128168665387, -53.10089405478649, 1.283851527438571, -295.30650178662637, -284.8945817377308]],
+                                                  upstreamFormulas=[
+                                                      ['[0]+[1]/(x-[2])', '[0]+[1]/(x-[2])']],
+                                                  # do not split the following line or it will break scripts that update the values of the corrections
+                                                  downstreamParameters = [[0.0018280333929494054, 0.004932212590963076, 0.8409676097173655, -1.2676690014715288, 0.005347798049886769, 4.161741293789687]],
+                                                  downstreamFormulas=[
+                                                      ['[0]+[1]*x', '[0]+[1]/sqrt(x)', '[0]+[1]/x']],
                                                   OutputLevel=INFO
                                                   )
+
+    if addShapeParameters:
+        augmentCaloClusters = AugmentClustersFCCee("augmentCaloClusters",
+                                                   inClusters=createClusters.clusters.Path,
+                                                   outClusters="Augmented" + createClusters.clusters.Path,
+                                                   systemIDs=[4],
+                                                   systemNames=["EMB"],
+                                                   numLayers=[11],
+                                                   readoutNames=[ecalBarrelReadoutName],
+                                                   layerFieldNames=["layer"],
+                                                   # use default values
+                                                   #thetaRecalcWeights=[
+                                                   #    [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
+                                                   #],
+                                                   OutputLevel=INFO
+                                                   )
+
+    if applyMVAClusterEnergyCalibration:
+        inClusters = ""
+        if addShapeParameters:
+            inClusters = "Augmented" + createClusters.clusters.Path
+        else:
+            inClusters = createClusters.clusters.Path
+
+        calibrateCaloClusters = CalibrateCaloClusters("calibrateCaloClusters",
+                                                      inClusters=inClusters,
+                                                      outClusters="Calibrated" + createClusters.clusters.Path,
+                                                      systemIDs=[4],
+                                                      systemNames=["EMB"],
+                                                      numLayers=[11],
+                                                      firstLayerIDs=[0],
+                                                      readoutNames=[
+                                                          ecalBarrelReadoutName],
+                                                      layerFieldNames=["layer"],
+                                                      calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/lgbm_calibration-CaloClusters-v03.onnx",
+                                                      OutputLevel=INFO
+                                                      )
+
+
+# Produce topological clusters
+if doTopoClustering:
+    createTopoInput = CaloTopoClusterInputTool("CreateTopoInput",
+                                               ecalBarrelReadoutName=ecalBarrelReadoutName,
+                                               ecalEndcapReadoutName="",
+                                               ecalFwdReadoutName="",
+                                               hcalBarrelReadoutName=hcalBarrelReadoutName2,
+                                               hcalExtBarrelReadoutName="",
+                                               hcalEndcapReadoutName="",
+                                               hcalFwdReadoutName="",
+                                               OutputLevel=INFO)
+
+    createTopoInput.ecalBarrelCells.Path = ecalBarrelPositionedCellsName
+    createTopoInput.ecalEndcapCells.Path = "emptyCaloCells"
+    createTopoInput.ecalFwdCells.Path = "emptyCaloCells"
+    createTopoInput.hcalBarrelCells.Path = hcalBarrelPositionedCellsName2
+    createTopoInput.hcalExtBarrelCells.Path = "emptyCaloCells"
+    createTopoInput.hcalEndcapCells.Path = "emptyCaloCells"
+    createTopoInput.hcalFwdCells.Path = "emptyCaloCells"
+    cellPositionHcalBarrelNoSegTool = None
+    cellPositionHcalExtBarrelTool = None
+
+    neighboursMap = "/LAr_scripts/data/neighbours_map_v03_ecalB_thetamodulemerged.root"
+    noiseMap = "/LAr_scripts/data/cellNoise_map_electronicsNoiseLevel_v03_ecalB_thetamodulemerged.root"
+    if runHCal:
+        neighboursMap = "/LAr_scripts/data/neighbours_map_v03_ecalB_thetamodulemerged_hcalB_thetaphi.root"
+        noiseMap = "/LAr_scripts/data/cellNoise_map_electronicsNoiseLevel_v03_ecalB_thetamodulemerged_hcalB_thetaphi.root"
+
+    readNeighboursMap = TopoCaloNeighbours("ReadNeighboursMap",
+                                           fileName=os.environ['FCCBASEDIR'] + neighboursMap,
+                                           OutputLevel=INFO)
+
+    # Noise levels per cell
+    readNoisyCellsMap = TopoCaloNoisyCells("ReadNoisyCellsMap",
+                                           fileName=os.environ['FCCBASEDIR'] + noiseMap,
+                                           OutputLevel=INFO)
+
+    createTopoClusters = CaloTopoClusterFCCee("CreateTopoClusters",
+                                              TopoClusterInput=createTopoInput,
+                                              # expects neighbours map from cellid->vec < neighbourIds >
+                                              neigboursTool=readNeighboursMap,
+                                              # tool to get noise level per cellid
+                                              noiseTool=readNoisyCellsMap,
+                                              # cell positions tools for all sub - systems
+                                              positionsECalBarrelTool=cellPositionEcalBarrelTool,
+                                              positionsHCalBarrelTool=cellPositionHcalBarrelTool2,
+                                              # positionsHCalBarrelNoSegTool=cellPositionHcalBarrelNoSegTool,
+                                              # positionsHCalExtBarrelTool=cellPositionHcalExtBarrelTool,
+                                              # positionsHCalExtBarrelTool = HCalExtBcells,
+                                              # positionsEMECTool = EMECcells,
+                                              # positionsHECTool = HECcells,
+                                              # positionsEMFwdTool = ECalFwdcells,
+                                              # positionsHFwdTool = HCalFwdcells,
+                                              noSegmentationHCal=False,
+                                              seedSigma=4,
+                                              neighbourSigma=2,
+                                              lastNeighbourSigma=0,
+                                              OutputLevel=INFO)
+    createTopoClusters.clusters.Path = "CaloTopoClusters"
+    createTopoClusters.clusterCells.Path = "CaloTopoClusterCells"
+
+    # Correction below is for EM-only clusters
+    # Need something different for EM+HCAL
+    if applyUpDownstreamCorrections:
+        correctCaloTopoClusters = CorrectCaloClusters(
+            "correctCaloTopoClusters",
+            inClusters=createTopoClusters.clusters.Path,
+            outClusters="Corrected" + createTopoClusters.clusters.Path,
+            systemIDs=[4],
+            numLayers=[11],
+            firstLayerIDs=[0],
+            lastLayerIDs=[10],
+            readoutNames=[ecalBarrelReadoutName],
+            # do not split the following line or it will break scripts that update the values of the corrections
+            upstreamParameters = [[0.025582045561310333, -0.9524128168665387, -53.10089405478649, 1.283851527438571, -295.30650178662637, -284.8945817377308]],
+            upstreamFormulas=[['[0]+[1]/(x-[2])', '[0]+[1]/(x-[2])']],
+            # do not split the following line or it will break scripts that update the values of the corrections
+            downstreamParameters = [[0.0018280333929494054, 0.004932212590963076, 0.8409676097173655, -1.2676690014715288, 0.005347798049886769, 4.161741293789687]],
+            downstreamFormulas=[['[0]+[1]*x', '[0]+[1]/sqrt(x)', '[0]+[1]/x']],
+            OutputLevel=INFO
+        )
+
+    if addShapeParameters:
+        augmentCaloTopoClusters = AugmentClustersFCCee("augmentCaloTopoClusters",
+                                                       inClusters=createTopoClusters.clusters.Path,
+                                                       outClusters="Augmented" + createTopoClusters.clusters.Path,
+                                                       systemIDs=[4],
+                                                       systemNames=["EMB"],
+                                                       numLayers=[11],
+                                                       readoutNames=[ecalBarrelReadoutName],
+                                                       layerFieldNames=["layer"],
+                                                       # use default weights
+                                                       # thetaRecalcWeights=[
+                                                       #     [-1, 3.0, 3.0, 3.0, 4.25, 4.0, 4.0, 4.0, 4.0, 4.0, 4.0]  # -1 : use linear weights
+                                                       # ],
+                                                       OutputLevel=INFO)
+
+    if applyMVAClusterEnergyCalibration:
+        inClusters = ""
+        if addShapeParameters:
+            inClusters = "Augmented" + createTopoClusters.clusters.Path
+        else:
+            inClusters = createTopoClusters.clusters.Path,
+        calibrateCaloTopoClusters = CalibrateCaloClusters("calibrateCaloTopoClusters",
+                                                          inClusters=inClusters,
+                                                          outClusters="Calibrated" + createTopoClusters.clusters.Path,
+                                                          systemIDs=[4],
+                                                          systemNames=["EMB"],
+                                                          numLayers=[11],
+                                                          firstLayerIDs=[0],
+                                                          readoutNames=[
+                                                              ecalBarrelReadoutName],
+                                                          layerFieldNames=["layer"],
+                                                          calibrationFile=os.environ['FCCBASEDIR'] + "/LAr_scripts/data/lgbm_calibration-CaloTopoClusters-v03.onnx",
+                                                          OutputLevel=INFO
+                                                          )
 
 # Output
 out = PodioOutput("out",
                   OutputLevel=INFO)
 
-# out.outputCommands = ["keep *"]
-# out.outputCommands = ["keep *", "drop ECalBarrelHits", "drop HCal*", "drop ECalBarrelCellsStep*",
-#                       "drop ECalBarrelPositionedHits", "drop emptyCaloCells", "drop CaloClusterCells"]
-# out.outputCommands = ["keep *", "drop ECalBarrelHits", "drop HCal*", "drop ECalBarrelCellsStep*",
-#                       "drop ECalBarrelPositionedHits", "drop emptyCaloCells", "drop CaloClusterCells",
-#                       "drop %s" % ecalBarrelCellsName, "drop %s" % createEcalBarrelPositionedCells.positionedHits.Path]
-# out.outputCommands = ["keep *", "drop ECalBarrelHits", "drop HCal*", "drop *ells*", "drop ECalBarrelPositionedHits", "drop emptyCaloCells"]
-# out.outputCommands = ["keep *", "drop HCal*", "drop ECalBarrel*", "drop emptyCaloCells"]
 if runHCal:
     out.outputCommands = ["keep *", "drop emptyCaloCells"]
 else:
@@ -683,7 +843,8 @@ createEcalBarrelCells.AuditExecute = True
 createEcalBarrelPositionedCells.AuditExecute = True
 if runHCal:
     createHcalBarrelCells.AuditExecute = True
-createTopoClusters.AuditExecute = True
+if doTopoClustering:
+    createTopoClusters.AuditExecute = True
 out.AuditExecute = True
 
 event_counter = EventCounter('event_counter')
@@ -711,27 +872,37 @@ if runHCal:
         createHcalBarrelCells,
         createHcalBarrelPositionedCells,
         rewriteHCalBarrel,
+        createHcalBarrelCells2,
         createHcalBarrelPositionedCells2,
         # createHcalEndcapCells
     ]
 
-TopAlg += [
-    createemptycells,
-    createClusters,
-    createTopoClusters
-]
+if doSWClustering or doTopoClustering:
+    TopAlg += [createemptycells]
 
-if applyUpDownstreamCorrections:
-    TopAlg += [
-        correctCaloClusters,
-        correctCaloTopoClusters
-    ]
+    if doSWClustering:
+        TopAlg += [createClusters]
 
-if applyMVAClusterEnergyCalibration:
-    TopAlg += [
-        calibrateCaloClusters,
-        calibrateCaloTopoClusters
-    ]
+        if applyUpDownstreamCorrections:
+            TopAlg += [correctCaloClusters]
+
+        if addShapeParameters:
+            TopAlg += [augmentCaloClusters]
+
+        if applyMVAClusterEnergyCalibration:
+            TopAlg += [calibrateCaloClusters]
+
+    if doTopoClustering:
+        TopAlg += [createTopoClusters]
+
+        if applyUpDownstreamCorrections:
+            TopAlg += [correctCaloTopoClusters]
+
+        if addShapeParameters:
+            TopAlg += [augmentCaloTopoClusters]
+
+        if applyMVAClusterEnergyCalibration:
+            TopAlg += [calibrateCaloTopoClusters]
 
 TopAlg += [
     out

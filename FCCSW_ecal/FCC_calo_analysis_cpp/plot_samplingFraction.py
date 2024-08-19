@@ -9,7 +9,7 @@ import json
 # python plot_samplingFraction.py /eos/user/b/brfranco/rootfile_storage/202011_condor_calib_5kEvt/calibration_output_pdgID_22_pMin_50000_pMax_50000_thetaMin_?_thetaMax_?.root 50 70 90 -r 50 70 90 --totalNumLayers 12 --preview -outputfolder plots_sampling_fraction_theta_50GeV --plotSFvsEnergy --theta
 calo_init.add_defaults()
 calo_init.parser.add_argument("--merge", help="merge layers",
-                              default=[1] * 12, nargs='+')  # bin 0 is empty! (before calo)
+                              default=[1] * 11, nargs='+')  # bin 0 is empty! (before calo)
 calo_init.parser.add_argument(
     "-t", "--title", default="Sampling fraction", help="Graph title", type=str)
 calo_init.parser.add_argument("-n", "--histogramName", default="ecal_sf_layer",
@@ -22,11 +22,12 @@ calo_init.parser.add_argument(
     "-min", "--axisMin", help="Minimum of the axis", type=float)
 calo_init.parser.add_argument("-outputfolder", default="plots_sampling_fraction",
                               help="Name of the output foler for the plots", type=str)
-calo_init.parser.add_argument("--totalNumLayers", default=12, type=int)
+calo_init.parser.add_argument("--totalNumLayers", default=11, type=int)
 calo_init.parser.add_argument("--numFirstLayer", default=0,
                               help="ID of first layer used in histograms name", type=int)
 calo_init.parser.add_argument(
-    "--layerWidth", default=[1.500000] * 1 + [3.500000] * 11, type=float)
+#    "--layerWidth", default=[1.500000] * 1 + [3.500000] * 11, type=float)
+    "--layerWidth", default=[1.63, 3.32, 3.42, 3.52, 3.63, 3.74, 3.87, 4.,   4.14, 4.29, 4.45], type=float)
 calo_init.parser.add_argument("--X0density", default=0.422,
                               help="Xo density of a current detector (X0/cm)", type=float)
 calo_init.parser.add_argument(
@@ -51,12 +52,11 @@ histNameMean = calo_init.args.histogramNameMean
 
 
 # gStyle.SetImageScaling(3.)
-# gStyle.SetOptFit(1111) # fi you want all fiut info on the preview canvas
+# gStyle.SetOptFit(1111) # if you want all fit info on the preview canvas
 gROOT.SetBatch(kTRUE)
 
 if not os.path.isdir(calo_init.args.outputfolder):
     os.mkdir(calo_init.args.outputfolder)
-
 merge = [sum(calo_init.args.merge[:i])
          for i in range(0, len(calo_init.args.merge))]
 sliceWidth = calo_init.args.layerWidth  # cm
@@ -129,6 +129,8 @@ for ifile, filename in enumerate(calo_init.filenamesIn):
         fitoptions = "SQRN"
     for islice, h in enumerate(hmerged):
         h.Print()
+        tmp_canvas_for_fit = prepare_single_canvas("tmp_canvas_for_fit","tmp_canvas_for_fit")
+
         fitPre = TF1("fitPre", "gaus",
                      h.GetMean() - 1. * h.GetRMS(),
                      h.GetMean() + 1. * h.GetRMS())
@@ -161,7 +163,7 @@ for ifile, filename in enumerate(calo_init.filenamesIn):
                 ifile, energy, result.Get().Parameter(1))
             dict_layer_sfVSenergyGraph[islice].SetPointError(
                 ifile, 0, result.Get().Parameter(2))
-        # draw both singla canvas and one big divided canvas (later is buggy at the moment)
+        # draw both single canvas and one big divided canvas
         if calo_init.args.preview:
             if calo_init.args.theta:
                 tmp_canvas = prepare_single_canvas("theta_%s_" % (energy) + h.GetTitle().replace(
@@ -211,7 +213,7 @@ if calo_init.args.sed:
     print(command + " run_thetamodulemerged.py")
     os.system("sed -i 's/samplingFractions *=.*,/samplingFractions = %s,/' fcc_ee_upstream_inclinedEcal.py" %
               string_for_fccsw)  # it has to be launched from FCCSW_ecal folder
-    os.system("sed -i 's/SFfcc *=.*/SFfcc = %s/' ../geometry/create_noise_file*heta* caloNtupleAnalyzer/energy_vs_depth_wrt_noise.py" %
+    os.system("sed -i 's/SFfcc *=.*/SFfcc = %s/' ../geometry/create_noise_file*heta* ../caloNtupleAnalyzer/energy_vs_depth_wrt_noise.py" %
               string_for_fccsw)  # it has to be launched from FCCSW_ecal folder
     # print(command + " ../../k4RecCalorimeter/RecFCCeeCalorimeter/tests/options/* ../../FCCSW/Examples/options/run_calo_fullsim_fccee.py")
 

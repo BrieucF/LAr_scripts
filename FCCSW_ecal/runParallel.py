@@ -71,7 +71,7 @@ class SamplingJobProcessor(JobProcessor):
         # make plots of sampling fraction, save SFs to json, and update the values in the python scripts
         energy_GeV = int(energy / 1.e3)
         cmd = f"python FCC_calo_analysis_cpp/plot_samplingFraction.py \
-            {self.outdir}/calibration_{self.output_tag}_energy_{energy}_theta_{theta}.root {energy_GeV}  --totalNumLayers 12 \
+            {self.outdir}/calibration_{self.output_tag}_energy_{energy}_theta_{theta}.root {energy_GeV} \
             --preview -outputfolder {self.outdir} --json {self.outdir}/SF.json --sed"
         return executeCmd(cmd)
 
@@ -136,16 +136,17 @@ class ClusterJobProcessor(JobProcessor):
         self.corrections = corrections
 
     def preprocess(self):
-        upstream_str = ', '.join([str(s) for s in self.corrections['up']])
-        downstream_str = ', '.join([str(s) for s in self.corrections['do']])
-        cmd = f"sed -i 's/upstreamParameters =.*,/upstreamParameters = [[{upstream_str}]],/' {self.script}"
-        executeCmd(cmd)
-        cmd = f"sed -i 's/downstreamParameters =.*,/downstreamParameters = [[{downstream_str}]],/' {self.script}"
-        executeCmd(cmd)
-        cmd = f"sed -i 's/saveHits *=.*/saveHits = False/' {self.script}"
-        executeCmd(cmd)
-        cmd = f"sed -i 's/saveCells *=.*/saveCells = False/' {self.script}"
-        return executeCmd(cmd)
+        if self.corrections:
+            upstream_str = ', '.join([str(s) for s in self.corrections['up']])
+            downstream_str = ', '.join([str(s) for s in self.corrections['do']])
+            cmd = f"sed -i 's/upstreamParameters =.*,/upstreamParameters = [[{upstream_str}]],/' {self.script}"
+            executeCmd(cmd)
+            cmd = f"sed -i 's/downstreamParameters =.*,/downstreamParameters = [[{downstream_str}]],/' {self.script}"
+            executeCmd(cmd)
+            cmd = f"sed -i 's/saveHits *=.*/saveHits = False/' {self.script}"
+            executeCmd(cmd)
+            cmd = f"sed -i 's/saveCells *=.*/saveCells = False/' {self.script}"
+            return executeCmd(cmd)
 
 
 class ProductionJobProcessor(JobProcessor):
@@ -186,16 +187,17 @@ class ClusterProductionJobProcessor(ProductionJobProcessor):
         self.corrections = corrections
 
     def preprocess(self):
-        upstream_str = ', '.join([str(s) for s in self.corrections['up']])
-        downstream_str = ', '.join([str(s) for s in self.corrections['do']])
-        command = f"sed -i 's/upstreamParameters *=.*,/upstreamParameters = [[{upstream_str}]],/' {self.script}"
-        print("Running", command)
-        if not debug:
-            subprocess.run([command], shell=True)
-        command = f"sed -i 's/downstreamParameters *=.*,/downstreamParameters = [[{downstream_str}]],/' {self.script}"
-        print("Running", command)
-        if not debug:
-            subprocess.run([command], shell=True)
+        if self.corrections:
+            upstream_str = ', '.join([str(s) for s in self.corrections['up']])
+            downstream_str = ', '.join([str(s) for s in self.corrections['do']])
+            command = f"sed -i 's/upstreamParameters *=.*,/upstreamParameters = [[{upstream_str}]],/' {self.script}"
+            print("Running", command)
+            if not debug:
+                subprocess.run([command], shell=True)
+            command = f"sed -i 's/downstreamParameters *=.*,/downstreamParameters = [[{downstream_str}]],/' {self.script}"
+            print("Running", command)
+            if not debug:
+                subprocess.run([command], shell=True)
 
 
 class UpstreamProductionJobProcessor(ProductionJobProcessor):
@@ -316,13 +318,13 @@ def main():
     thetas = list(set(args.thetas))
 
     sampling_fracs = None
-    if args.SF:
+    if args.SF!="":
         with open(args.SF, 'r') as jsonfile:
             sampling_fracs = json.load(jsonfile)
             print("Applying sampling fractions:", sampling_fracs)
 
     corrections = None
-    if args.corrections:
+    if args.corrections!="":
         with open(args.corrections, 'r') as jsonfile:
             source = json.load(jsonfile)
             dict_up = {e['name']: e['value'] for e in source['corr_params'] if e['type'] == 'upstream'}

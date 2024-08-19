@@ -5,7 +5,7 @@ import os
 from Gaudi.Configuration import INFO, DEBUG
 
 # produce neighbour map also for HCal
-doHCal = True
+doHCal = False
 
 # only relevant if doHCal is True, set to True
 # for combined ECal+HCal topoclusters
@@ -17,7 +17,7 @@ geoservice = GeoSvc("GeoSvc")
 path_to_detector = os.environ.get("K4GEO", "")
 print(path_to_detector)
 detectors_to_use = [
-    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v02/ALLEGRO_o1_v02.xml'
+    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml'
 ]
 
 # prefix all xmls with path_to_detector
@@ -34,7 +34,7 @@ if doHCal:
                                            systemNames=["system", "system"],
                                            systemValues=[4, 8],
                                            activeFieldNames=["layer", "layer"],
-                                           activeVolumesNumbers=[12, 13],
+                                           activeVolumesNumbers=[11, 13],
                                            activeVolumesTheta=[
                                                [],
                                                [
@@ -47,7 +47,7 @@ if doHCal:
                                            connectBarrels=linkECalHCalBarrels,
                                            OutputLevel=DEBUG)
 else:
-    # create the neighbour file for ECAL+HCAL barrel cells
+    # create the neighbour file for ECAL barrel cells
     neighbours = CreateFCCeeCaloNeighbours("neighbours",
                                            outputFileName="neighbours_map_ecalB_thetamodulemerged.root",
                                            readoutNames=[
@@ -55,7 +55,7 @@ else:
                                            systemNames=["system"],
                                            systemValues=[4],
                                            activeFieldNames=["layer"],
-                                           activeVolumesNumbers=[12],
+                                           activeVolumesNumbers=[11],
                                            includeDiagonalCells=False,
                                            connectBarrels=False,
                                            OutputLevel=DEBUG)

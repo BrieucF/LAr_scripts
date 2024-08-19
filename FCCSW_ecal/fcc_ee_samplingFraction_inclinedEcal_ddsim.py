@@ -1,5 +1,6 @@
 from Configurables import ApplicationMgr
 from Configurables import EventCounter
+from Configurables import k4DataSvc, PodioInput
 from Configurables import PodioOutput
 from Configurables import AuditorSvc, ChronoAuditor
 from Configurables import SamplingFractionInLayers
@@ -14,45 +15,30 @@ from Configurables import FCCDataSvc
 from Configurables import THistSvc
 from Gaudi.Configuration import INFO
 
+
 from GaudiKernel.SystemOfUnits import GeV
 from GaudiKernel.PhysicalConstants import pi
 
 import os
 
-# Electron momentum in GeV
-momentum = 10
-# Theta min and max in degrees
-thetaMin = 90.
-thetaMax = 90.
+# Loading the output of the SIM step
+evtsvc = k4DataSvc('EventDataSvc')
+evtsvc.input = "./ALLEGRO_calibration_sim.root"
 
-# Data service
-podioevent = FCCDataSvc("EventDataSvc")
+input_reader = PodioInput('InputReader')
 
-# Particle gun setup
-pgun = MomentumRangeParticleGun("ParticleGun_Photon")
-pgun.PdgCodes = [11]
-pgun.MomentumMin = momentum * GeV
-pgun.MomentumMax = momentum * GeV
-pgun.PhiMin = 0
-pgun.PhiMax = 2 * pi
-# theta = 90 degrees (eta = 0)
-pgun.ThetaMin = thetaMin * pi / 180.
-pgun.ThetaMax = thetaMax * pi / 180.
-
-genalg_pgun = GenAlg()
-genalg_pgun.SignalProvider = pgun
-genalg_pgun.hepmc.Path = "hepmc"
-
-hepmc_converter = HepMCToEDMConverter()
-hepmc_converter.hepmc.Path = "hepmc"
-genParticlesOutputName = "genParticles"
-hepmc_converter.GenParticles.Path = genParticlesOutputName
-hepmc_converter.hepmcStatusList = []
+podioevent = k4DataSvc("EventDataSvc")
 
 # DD4hep geometry service
 geoservice = GeoSvc("GeoSvc",
                     OutputLevel=INFO)
 
+# old
+# path_to_detector = os.environ.get("FCCDETECTORS", "")
+# detectors_to_use = [
+#    'Detector/DetFCCeeIDEA-LAr/compact/FCCee_DectEmptyMaster.xml',
+#    'Detector/DetFCCeeECalInclined/compact/FCCee_ECalBarrel_thetamodulemerged_calibration.xml',
+#    ]
 path_to_detector = os.environ.get("K4GEO", "")
 detectors_to_use = [
     'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/DectEmptyMaster.xml',
@@ -61,13 +47,6 @@ detectors_to_use = [
 geoservice.detectors = [os.path.join(
     path_to_detector, _det) for _det in detectors_to_use]
 
-# Geant4 service
-# Configures the Geant simulation: geometry, physics list and user actions
-geantservice = SimG4Svc("SimG4Svc", detector='SimG4DD4hepDetector',
-                        physicslist="SimG4FtfpBert", actions="SimG4FullSimActions")
-geantservice.g4PostInitCommands += ["/run/setCut 0.1 mm"]
-geantservice.randomNumbersFromGaudi = False
-geantservice.seedValue = 4242
 
 # Geant4 algorithm
 # Translates EDM to G4Event, passes the event to G4, writes out outputs via tools
@@ -78,27 +57,18 @@ saveECalBarrelTool = SimG4SaveCalHits("saveECalBarrelHits",
                                       )
 saveECalBarrelTool.CaloHits.Path = ecalBarrelHitsName
 
-particle_converter = SimG4PrimariesFromEdmTool("EdmConverter")
-particle_converter.GenParticles.Path = genParticlesOutputName
-
-# next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
-geantsim = SimG4Alg("SimG4Alg",
-                    outputs=[saveECalBarrelTool],
-                    eventProvider=particle_converter,
-                    OutputLevel=INFO)
-
 hist = SamplingFractionInLayers("hists",
-                                energyAxis=momentum,
+                                energyAxis=10,
                                 readoutName="ECalBarrelModuleThetaMerged",
                                 layerFieldName="layer",
                                 activeFieldName="type",
                                 activeFieldValue=0,
-                                numLayers=11,
+                                numLayers=12,
                                 OutputLevel=INFO)
-hist.deposits.Path = ecalBarrelHitsName
+hist.deposits.Path = "ECalBarrelModuleThetaMerged"
 
 THistSvc().Output = [
-    "rec DATAFILE='histSF_fccee_inclined.root' TYP='ROOT' OPT='RECREATE'"]
+    "rec DATAFILE='calibration_output_pdgID_11_pMin_10000_pMax_10000_thetaMin_55_thetaMax_125_ddsim.root' TYP='ROOT' OPT='RECREATE'"]
 THistSvc().PrintAll = True
 THistSvc().AutoSave = True
 THistSvc().AutoFlush = False
@@ -108,7 +78,6 @@ THistSvc().OutputLevel = INFO
 chra = ChronoAuditor()
 audsvc = AuditorSvc()
 audsvc.Auditors = [chra]
-geantsim.AuditExecute = True
 hist.AuditExecute = True
 
 # PODIO algorithm
@@ -120,11 +89,11 @@ event_counter = EventCounter('event_counter')
 event_counter.Frequency = 10
 
 # ApplicationMgr
-ApplicationMgr(TopAlg=[event_counter, genalg_pgun, hepmc_converter, geantsim, hist, out],
+ApplicationMgr(TopAlg=[event_counter, input_reader, hist, out],
                EvtSel='NONE',
-               EvtMax=100,
+               EvtMax=-1,
                # order is important, as GeoSvc is needed by G4SimSvc
-               ExtSvc=[geoservice, podioevent, geantservice, audsvc],
+               ExtSvc=[geoservice, podioevent, audsvc],
                OutputLevel=INFO,
                StopOnSignal=True
                )

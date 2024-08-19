@@ -51,8 +51,8 @@ geoservice = GeoSvc("GeoSvc",
                     OutputLevel=WARNING)
 path_to_detector = environ.get("K4GEO", "")
 detectors_to_use = [
-    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v02/DectEmptyMaster.xml',
-    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v02/ECalBarrel_thetamodulemerged_upstream.xml'
+    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/DectEmptyMaster.xml',
+    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ECalBarrel_thetamodulemerged_upstream.xml'
 ]
 geoservice.detectors = [path.join(
     path_to_detector, _det) for _det in detectors_to_use]
@@ -93,12 +93,12 @@ createcellsBarrel.cells.Path = "ECalBarrelCells"
 
 energy_in_layers = EnergyInCaloLayers("energyInLayers",
                                       readoutName="ECalBarrelModuleThetaMerged",
-                                      numLayers=12,
+                                      numLayers=11,
                                       # sampling fraction is given as the energy correction will be applied on
                                       # calibrated cells
                                       # do not split the following line on multiple lines or it will break scripts
                                       # that update the values of the corrections
-                                      samplingFractions = [0.3864252122990472] * 1 + [0.13597644835735828] * 1 + [0.14520427829645913] * 1 + [0.1510076084632846] * 1 + [0.1552347580991012] * 1 + [0.159694330729184] * 1 + [0.1632954482794191] * 1 + [0.16720711037339814] * 1 + [0.17047749048884808] * 1 + [0.17461698117974286] * 1 + [0.1798984163980135] * 1 + [0.17920355117405806] * 1,
+                                      samplingFractions = [0.3775596654349802] * 1 + [0.13400227700041234] * 1 + [0.14390509963164044] * 1 + [0.14998482026270935] * 1 + [0.15457673722531148] * 1 + [0.15928098152159675] * 1 + [0.1635367867767212] * 1 + [0.16801070646031507] * 1 + [0.1713409944779989] * 1 + [0.17580195406064622] * 1 + [0.17966699467772812] * 1,
                                       OutputLevel=INFO)
 energy_in_layers.deposits.Path = "ECalBarrelCells"
 energy_in_layers.particle.Path = "GenParticles"

@@ -1,8 +1,8 @@
 from Configurables import GeoSvc
 from Configurables import ApplicationMgr
 from Configurables import CreateFCCeeCaloNoiseLevelMap
-# from Configurables import ReadNoiseFromFileTool
-from Configurables import ReadNoiseVsThetaFromFileTool
+#from Configurables import ReadNoiseVsThetaFromFileTool
+from Configurables import NoiseCaloCellsVsThetaFromFileTool
 from Configurables import ConstNoiseTool
 from Configurables import CellPositionsECalBarrelModuleThetaSegTool
 import os
@@ -16,7 +16,7 @@ geoservice = GeoSvc("GeoSvc")
 path_to_detector = os.environ.get("K4GEO", "")
 print(path_to_detector)
 detectors_to_use = [
-    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v02/ALLEGRO_o1_v02.xml'
+    'FCCee/ALLEGRO/compact/ALLEGRO_o1_v03/ALLEGRO_o1_v03.xml'
 ]
 # prefix all xmls with path_to_detector
 geoservice.detectors = [os.path.join(
@@ -29,24 +29,37 @@ hcalBarrelReadoutName = "BarHCal_Readout_phitheta"
 # names of file and histograms with noise per layer vs theta for barrel ECAL
 BarrelNoisePath = os.environ['FCCBASEDIR'] + \
     "/LAr_scripts/data/elecNoise_ecalBarrelFCCee_theta.root"
-ecalBarrelNoiseHistName = "h_elecNoise_fcc_"
+ecalBarrelNoiseRMSHistName = "h_elecNoise_fcc_"
 
 # cell positioning and noise tool for the ecal barrel
 ECalBcells = CellPositionsECalBarrelModuleThetaSegTool("CellPositionsECalBarrel",
                                                        readoutName=ecalBarrelReadoutName)
 
-ECalNoiseTool = ReadNoiseVsThetaFromFileTool("ReadNoiseFromFileToolECal",
-                                             useSegmentation=False,
-                                             cellPositionsTool=ECalBcells,
-                                             readoutName=ecalBarrelReadoutName,
-                                             noiseFileName=BarrelNoisePath,
-                                             elecNoiseHistoName=ecalBarrelNoiseHistName,
-                                             setNoiseOffset=False,
-                                             activeFieldName="layer",
-                                             addPileup=False,
-                                             numRadialLayers=12,
-                                             scaleFactor=1 / 1000.,  # MeV to GeV
-                                             OutputLevel=INFO)
+#ECalNoiseTool = ReadNoiseVsThetaFromFileTool("ReadNoiseFromFileToolECal",
+#                                             useSegmentation=False,
+#                                             cellPositionsTool=ECalBcells,
+#                                             readoutName=ecalBarrelReadoutName,
+#                                             noiseFileName=BarrelNoisePath,
+#                                             elecNoiseHistoName=ecalBarrelNoiseHistName,
+#                                             setNoiseOffset=False,
+#                                             activeFieldName="layer",
+#                                             addPileup=False,
+#                                             numRadialLayers=11,
+#                                             scaleFactor=1 / 1000.,  # MeV to GeV
+#                                             OutputLevel=INFO)
+
+ECalNoiseTool = NoiseCaloCellsVsThetaFromFileTool("NoiseCaloCellsVsThetaFromFileTool",
+                                                  cellPositionsTool=ECalBcells,
+                                                  readoutName=ecalBarrelReadoutName,
+                                                  noiseFileName=BarrelNoisePath,
+                                                  elecNoiseRMSHistoName=ecalBarrelNoiseRMSHistName,
+                                                  setNoiseOffset=False,
+                                                  activeFieldName="layer",
+                                                  addPileup=False,
+                                                  numRadialLayers=11,
+                                                  scaleFactor=1 / 1000.,  # MeV to GeV
+                                                  OutputLevel=DEBUG)
+
 
 if doHCal:
     # noise tool for the HCAL barrel
@@ -63,9 +76,17 @@ if doHCal:
     #                                       OutputLevel = INFO)
     # ConstNoiseTool provides constant noise for all calo subsystems
     # here we are going to use it only for hcal barrel
-    HCalNoiseTool = ConstNoiseTool("ConstNoiseTool")
+    HCalNoiseTool = ConstNoiseTool("ConstNoiseTool",
+                                   detectors = [ "HCAL_Barrel"],
+                                   detectorsNoiseRMS = [0.0115/4],
+                                   OutputLevel = DEBUG)
+    #HCalNoiseTool = ConstNoiseTool("ConstNoiseTool",
+    #                               detectors = ["ECAL_Barrel", "ECAL_Endcap", "HCAL_Barrel", "HCAL_Endcap"],
+    #                               detectorsNoiseRMS = [0.0075/4, 0.0075/4, 0.0115/4, 0.0115/4],
+    #                               OutputLevel = DEBUG)
 
     # create the noise file for ECAL+HCAL barrel cells
+    # the tool wants the system IDs, maybe we could have passed the names instead
     noisePerCell = CreateFCCeeCaloNoiseLevelMap("noisePerCell",
                                                 ECalBarrelNoiseTool=ECalNoiseTool,
                                                 ecalBarrelSysId=4,
@@ -78,8 +99,7 @@ if doHCal:
                                                 systemValues=[4, 8],
                                                 activeFieldNames=[
                                                     "layer", "layer"],
-                                                activeVolumesNumbers=[12, 13],
-                                                # activeVolumesEta = [1.2524, 1.2234, 1.1956, 1.1561, 1.1189, 1.0839, 1.0509, 0.9999, 0.9534, 0.91072],
+                                                activeVolumesNumbers=[11, 13],
                                                 activeVolumesTheta=[
                                                     [],
                                                     [
@@ -101,7 +121,7 @@ else:
                                                 systemNames=["system"],
                                                 systemValues=[4],
                                                 activeFieldNames=["layer"],
-                                                activeVolumesNumbers=[12],
+                                                activeVolumesNumbers=[11],
                                                 activeVolumesTheta=[[]],
                                                 outputFileName="cellNoise_map_electronicsNoiseLevel_ecalB_thetamodulemerged.root",
                                                 OutputLevel=DEBUG)
