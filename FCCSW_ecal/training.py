@@ -77,8 +77,8 @@ def run(in_directory, clusters, out_file, runTraining, writeFeatures, writeTarge
         cluster_E = cols["Cluster_E"]
         normalized_layers = np.array([cols[f"Cluster_E{i}"] for i in range(numLayers)])
     else:
-        cluster_E = layers.sum(axis=0)
         layers = np.array([cols[f"Cluster_E{i}"] for i in range(numLayers)])
+        cluster_E = layers.sum(axis=0)
         normalized_layers = np.divide(layers, cluster_E)
 
     label = cols["Truth_E"] / cluster_E

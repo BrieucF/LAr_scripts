@@ -120,8 +120,9 @@ def get_resolutions(in_directory, clusters_colls):
                 .Define("good_clusters_phi_mod", f"fmod(good_clusters_phi,{2*np.pi/Nplates})")
                 .Define("leading_cluster_idx", "ArgMax(good_clusters_e)")
                 .Define("response_e", f"(good_clusters_e[leading_cluster_idx] - {truth_e}) / {truth_e}")
-                .Define("response_theta", "ROOT::VecOps::DeltaPhi(e_theta[0], good_clusters_theta[leading_cluster_idx])")
-                .Define("response_phi", "ROOT::VecOps::DeltaPhi(e_phi[0], good_clusters_phi[leading_cluster_idx])")
+                ## mmlynari: DeltaPhi function is being called with arguments of conflicting types, which are float and double
+	        .Define("response_theta", "ROOT::VecOps::DeltaPhi(static_cast<float>(e_theta[0]), static_cast<float>(good_clusters_theta[leading_cluster_idx]))")
+		.Define("response_phi", "ROOT::VecOps::DeltaPhi(static_cast<float>(e_phi[0]), static_cast<float>(good_clusters_phi[leading_cluster_idx]))") 
             )
             h_phi = df2.Histo1D("response_phi")
             h_theta = df2.Histo1D("response_theta")
@@ -199,19 +200,19 @@ def get_MVAcalib_resolution(in_directory, clusters, MVAcalib_file):
             .Define("good_clusters", f"{clusters}[clusters_energy>0.1]")
             .Filter("good_clusters.size()>0", ">=1 cluster with E>100MeV")
             .Define("good_clusters_e", "getCaloCluster_energy(good_clusters)")
-            .Define("good_clusters_EnergyInLayers", f"getCaloCluster_energyInLayers(good_clusters, {cells}, 12)")
+            .Define("good_clusters_EnergyInLayers", f"getCaloCluster_energyInLayers(good_clusters, {cells}, 11)")
             .Define("lc_idx", "ArgMax(good_clusters_e)")
             .Define("Cluster_E", "good_clusters_e[lc_idx]")
         )
-        for i in range(12):
+        for i in range(11):
             df = df.Define(f"good_clusters_E{i}", f"getFloatAt({i})(good_clusters_EnergyInLayers)")
             df = df.Define(f"Cluster_E{i}", f"good_clusters_E{i}[lc_idx]")
 
-        cols_to_use = [f"Cluster_E{i}" for i in range(12)]
+        cols_to_use = [f"Cluster_E{i}" for i in range(11)]
         cols_to_use += ["Cluster_E"]
         v_cols_to_use = ROOT.std.vector('string')(cols_to_use)
         # Filter to remove weird events and get a proper tree
-        # filter_str = "&&".join([f" Cluster_E{i}!=0 " for i in range(12)])
+        # filter_str = "&&".join([f" Cluster_E{i}!=0 " for i in range(11)])
         # df2 = df.Filter(filter_str + " && Cluster_E!=0", "Remove bad clusters with missing cell links")
         df2 = df.Filter("Cluster_E5!=0 && Cluster_E!=0", "Remove bad clusters with missing cell links")
         cols = df2.AsNumpy(v_cols_to_use)
@@ -230,7 +231,6 @@ def get_MVAcalib_resolution(in_directory, clusters, MVAcalib_file):
             cols["Cluster_E8"],
             cols["Cluster_E9"],
             cols["Cluster_E10"],
-            cols["Cluster_E11"],
         ])
 
         cluster_E = layers.sum(axis=0)
