@@ -266,3 +266,13 @@ Basically runs all the steps in one go. Comment/uncomment lines as needed.
 * Calls the `runParallel` scripts for the various steps.
 * Train the MVA calib (on CaloClusters and CaloTopoClusters)
 * Then compute the resolutions and responses, and make plots.
+
+#### Producing neighbours of crosstalk
+jobOption to run:
+`xtalk_neighbours_theta.py`
+
+For each cell, generate a list of crosstalk neighbours and their corresponding crosstalk coefficients with respect to the cell under study. The Layer/Module/Theta indices can be added for debug purpose.
+
+Output:
+`xtalk_neighbours_map_ecalB_thetamodulemerged.root`
+A list of crosstalk neighbours and corresponding crosstalk coefficients for each cell.

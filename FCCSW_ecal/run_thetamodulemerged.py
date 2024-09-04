@@ -55,7 +55,6 @@ from GaudiKernel.PhysicalConstants import pi, halfpi, twopi
 # python libraries
 import os
 from math import cos, sin, tan
-
 #
 # SETTINGS
 #
@@ -63,7 +62,7 @@ from math import cos, sin, tan
 # - general settings
 #
 use_pythia = False  # use pythia or particle gun
-addNoise = False     # add noise or not to the cell energy
+addNoise = True     # add noise or not to the cell energy
 dumpGDML = False    # create GDML file of detector model
 runHCal = False     # simulate only the ECAL or both ECAL+HCAL
 
@@ -367,7 +366,8 @@ if runHCal:
 
 # Step 1: merge hits into cells according to initial segmentation
 ecalBarrelCellsName = "ECalBarrelCells"
-createEcalBarrelCells = CreateCaloCells("CreateECalBarrelCells",
+if not addNoise:
+    createEcalBarrelCells = CreateCaloCells("CreateECalBarrelCells",
                                         doCellCalibration=True,
                                         calibTool=calibEcalBarrel,
                                         addCellNoise=False,
@@ -432,7 +432,6 @@ createEcalBarrelPositionedCells2.positionsTool = cellPositionEcalBarrelTool2
 createEcalBarrelPositionedCells2.hits.Path = ecalBarrelCellsName2
 createEcalBarrelPositionedCells2.positionedHits.Path = "ECalBarrelPositionedCells2"
 
-
 # Create cells in ECal endcap
 createEcalEndcapCells = CreateCaloCells("CreateEcalEndcapCaloCells",
                                         doCellCalibration=True,
@@ -458,28 +457,30 @@ if addNoise:
                                                     filterNoiseThreshold=0,
                                                     numRadialLayers=11,
                                                     scaleFactor=1 / 1000.,  # MeV to GeV
-                                                    OutputLevel=DEBUG)
+                                                    OutputLevel=INFO)
 
-    # needs to be migrated!
-    #from Configurables import TubeLayerPhiEtaCaloTool
-    #barrelGeometry = TubeLayerPhiEtaCaloTool("EcalBarrelGeo",
-    #                                         readoutName=ecalBarrelReadoutNamePhiEta,
-    #                                         activeVolumeName="LAr_sensitive",
-    #                                         activeFieldName="layer",
-    #                                         activeVolumesNumber=12,
-    #                                         fieldNames=["system"],
-    #                                         fieldValues=[4])
+    # barrel geometry tool is migrated to match ALLEGRO v3 segmentation
+    from Configurables import TubeLayerModuleThetaMergedCaloTool
+    barrelGeometry = TubeLayerModuleThetaMergedCaloTool("EcalBarrelGeo",
+                                             readoutName=ecalBarrelReadoutName,
+                                             activeVolumeName="LAr_sensitive",
+                                             activeFieldName="layer",
+                                             activeVolumesNumber=11,
+                                             fieldNames=["system"],
+                                             fieldValues=[4])
     
     # cells with noise not filtered
-    # createEcalBarrelCellsNoise = CreateCaloCells("CreateECalBarrelCellsNoise",
-    #                                              doCellCalibration=False,
-    #                                              addCellNoise=True,
-    #                                              filterCellNoise=False,
-    #                                              OutputLevel=INFO,
-    #                                              hits="ECalBarrelCellsStep2",
-    #                                              noiseTool=noiseBarrel,
-    #                                              geometryTool=barrelGeometry,
-    #                                              cells=EcalBarrelCellsName)
+    createEcalBarrelCells = CreateCaloCells("CreateECalBarrelCellsNoise",
+                                                 doCellCalibration=True,
+                                                 calibTool=calibEcalBarrel,
+                                                 addCellNoise=True,
+                                                 filterCellNoise=False,
+                                                 noiseTool=noiseBarrel,
+                                                 addPosition=True,
+                                                 geometryTool=barrelGeometry,
+                                                 OutputLevel=INFO,
+                                                 hits=ecalBarrelHitsName,
+                                                 cells=ecalBarrelCellsName)
 
     # cells with noise filtered
     # createEcalBarrelCellsNoise = CreateCaloCells("CreateECalBarrelCellsNoise_filtered",
@@ -864,7 +865,7 @@ TopAlg = [
     resegmentEcalBarrel,
     createEcalBarrelCells2,
     createEcalBarrelPositionedCells2,
-    createEcalEndcapCells
+    createEcalEndcapCells,
 ]
 
 if runHCal:
