@@ -11,6 +11,9 @@ import ROOT
 
 graphicFormat = 'pdf'
 
+# Define marker styles globally
+marker_styles = ['o', '^', 's', 'D', '*', 'x', '|', '+']
+
 
 def main():
     # enable if seaborn is installed
@@ -55,9 +58,8 @@ def main():
     os.makedirs(args.outDir, exist_ok=True)
     args.func(args)
 
-
 def plot(args):
-    df = ROOT.RDF.MakeCsvDataFrame(args.inputFile)
+    df = ROOT.RDF.FromCSV(args.inputFile)
     df = add_uncertainties(df)
 
     if args.all:
@@ -80,7 +82,7 @@ def plot(args):
 
 
 def compare_clusters(args):
-    df = ROOT.RDF.MakeCsvDataFrame(args.inputFile)
+    df = ROOT.RDF.FromCSV(args.inputFile)
     df = add_uncertainties(df)
 
     clusters_colls = [args.cluster1] + args.clusters
@@ -111,7 +113,7 @@ def compare_files(args):
     else:
         tags = [os.path.splitext(os.path.basename(f))[0] for f in all_files]
 
-    dfs = [add_uncertainties(ROOT.RDF.MakeCsvDataFrame(f)) for f in all_files]
+    dfs = [add_uncertainties(ROOT.RDF.FromCSV(f)) for f in all_files]
 
     if args.all:
         clusters_colls = set([str(cl) for cl in dfs[0].AsNumpy(["ClusterType"])["ClusterType"].astype(ROOT.std.string)])
@@ -207,7 +209,8 @@ def simple_plot(df, name, clusters, do_fit=False, tag=None):
         do_fit = False
     energies, yvals, yvals_err, popts = extract_values(df, name, clusters, do_fit)
     fig, ax = prepare_fig(name, tag)
-    leg_entries = [ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{name}, {clusters}", marker='o',
+    marker_style = marker_styles[0]
+    leg_entries = [ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{name}, {clusters}", marker=marker_style,
                                linestyle='none')]
     if do_fit:
         leg_entries.append(plot_fit(ax, energies, popts))
@@ -220,9 +223,10 @@ def comparison_plot_clusters(df, name, clusters, do_fit=False, tag=None):
         do_fit = False
     fig, ax = prepare_fig(name, tag)
     leg_entries = []
-    for cl in clusters:
+    for idx, cl in enumerate(clusters):
         energies, yvals, yvals_err, popts = extract_values(df, name, cl, do_fit)
-        errbar = ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{name}, {cl}", marker='o', linestyle='none')
+        marker_style = marker_styles[idx % len(marker_styles)] 
+        errbar = ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{name}, {cl}", marker=marker_style, linestyle='none')
         leg_entries.append(errbar)
         if do_fit:
             leg_entries.append(plot_fit(ax, energies, popts, color=errbar[0].get_color()))
@@ -235,9 +239,10 @@ def comparison_plot_files(dfs, tags, name, clusters, do_fit=False):
         do_fit = False
     fig, ax = prepare_fig(name, clusters)
     leg_entries = []
-    for df, tag in zip(dfs, tags):
+    for idx, (df, tag) in enumerate(zip(dfs, tags)):
         energies, yvals, yvals_err, popts = extract_values(df, name, clusters, do_fit)
-        errbar = ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{tag}", marker='o', linestyle='none')
+        marker_style = marker_styles[idx % len(marker_styles)] 
+        errbar = ax.errorbar(energies, yvals, yerr=yvals_err, label=f"{tag}", marker=marker_style, linestyle='none')
         leg_entries.append(errbar)
         if do_fit:
             leg_entries.append(plot_fit(ax, energies, popts, color=errbar[0].get_color()))
