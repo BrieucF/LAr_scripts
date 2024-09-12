@@ -276,10 +276,12 @@ if runHCal:
     hcalBarrelReadoutName = "HCalBarrelReadout"  # barrel, layer-row-theta-phi based (can be used to fill various cell collections with different readouts)
     hcalBarrelReadoutName2 = "BarHCal_Readout_phitheta"  # barrel, layer-theta-phi based, groups tiles from different rows together (baseline)
     hcalEndcapReadoutName = "HCalEndcapReadout"  # endcap
+    hcalEndcapReadoutName2 = "HCalEndcapReadout_phitheta"  # endcap
 else:
     hcalBarrelReadoutName = ""
     hcalBarrelReadoutName2 = ""
     hcalEndcapReadoutName = ""
+    hcalEndcapReadoutName2 = ""
 
 # Configure saving of calorimeter positioned hits
 # - ECAL barrel
@@ -303,19 +305,20 @@ saveECalEndcapTool.CaloHits.Path = ecalEndcapHitsName
 if runHCal:
     # - HCAL barrel
     hcalBarrelHitsName = "HCalBarrelPositionedHits"
-    saveHCalTool = SimG4SaveCalHits(
+    saveHCalBarrelTool = SimG4SaveCalHits(
         "saveHCalBarrelHits",
         readoutName=hcalBarrelReadoutName,
         OutputLevel=INFO
     )
-    saveHCalTool.CaloHits.Path = hcalBarrelHitsName
+    saveHCalBarrelTool.CaloHits.Path = hcalBarrelHitsName
 
     # - HCAL endcap
-    # saveHCalEndcapTool = SimG4SaveCalHits(
-    #    "saveHCalEndcapHits",
-    #    readoutName = hcalEndcapReadoutName
-    # )
-    # saveHCalEndcapTool.CaloHits.Path = "HCalEndcapHits"
+    saveHCalEndcapTool = SimG4SaveCalHits(
+        "saveHCalEndcapHits",
+        readoutName = hcalEndcapReadoutName,
+        OutputLevel=INFO
+    )
+    saveHCalEndcapTool.CaloHits.Path = "HCalEndcapPositionedHits"
 
 # next, create the G4 algorithm, giving the list of names of tools ("XX/YY")
 particle_converter = SimG4PrimariesFromEdmTool("EdmConverter")
@@ -327,8 +330,8 @@ outputTools = [
 ]
 if runHCal:
     outputTools += [
-        saveHCalTool,
-        # saveHCalEndcapTool
+        saveHCalBarrelTool,
+        saveHCalEndcapTool
     ]
 
 if saveG4Hist:
@@ -527,10 +530,11 @@ if runHCal:
                                             OutputLevel=INFO)
 
     # 2 - attach positions to the cells (cell positions needed for RedoSegmentation!)
-    from Configurables import CellPositionsHCalBarrelPhiThetaSegTool
-    cellPositionHcalBarrelTool = CellPositionsHCalBarrelPhiThetaSegTool(
+    from Configurables import CellPositionsHCalPhiThetaSegTool
+    cellPositionHcalBarrelTool = CellPositionsHCalPhiThetaSegTool(
         "CellPositionsHCalBarrel",
         readoutName=hcalBarrelReadoutName,
+        detectorName=="HCalBarrel",
         OutputLevel=INFO
     )
     hcalBarrelPositionedCellsName = "HCalBarrelPositionedCells"
@@ -572,11 +576,11 @@ if runHCal:
                                              cells=hcalBarrelCellsName2)
 
     # 4 - attach positions to the new cells
-    from Configurables import CellPositionsHCalBarrelPhiThetaSegTool
     hcalBarrelPositionedCellsName2 = "HCalBarrelPositionedCells2"
-    cellPositionHcalBarrelTool2 = CellPositionsHCalBarrelPhiThetaSegTool(
+    cellPositionHcalBarrelTool2 = CellPositionsHCalPhiThetaSegTool(
         "CellPositionsHCalBarrel2",
         readoutName=hcalBarrelReadoutName2,
+        detectorName=="HCalBarrel",
         OutputLevel=INFO
     )
     createHcalBarrelPositionedCells2 = CreateCaloCellPositionsFCCee(
@@ -588,14 +592,76 @@ if runHCal:
     createHcalBarrelPositionedCells2.positionedHits.Path = hcalBarrelPositionedCellsName2
 
     # Create cells in HCal endcap
-    # createHcalEndcapCells = CreateCaloCells("CreateHcalEndcapCaloCells",
-    #                                    doCellCalibration=True,
-    #                                    calibTool=calibHcalEndcap,
-    #                                    addCellNoise=False,
-    #                                    filterCellNoise=False,
-    #                                    OutputLevel=INFO)
-    # createHcalEndcapCells.hits.Path="HCalEndcapHits"
-    # createHcalEndcapCells.cells.Path="HCalEndcapCells"
+    # 1 - merge hits into cells with the default readout
+    hcalEndcapCellsName = "HCalEndcapCells"
+    createHcalEndcapCells = CreateCaloCells("CreateHCalEndcapCells",
+                                            doCellCalibration=True,
+                                            calibTool=calibHcalEndcap,
+                                            addCellNoise=False,
+                                            filterCellNoise=False,
+                                            addPosition=True,
+                                            hits="HCalEndcapPositionedHits",
+                                            cells=hcalEndcapCellsName,
+                                            OutputLevel=INFO)
+
+    # 2 - attach positions to the cells (cell positions needed for RedoSegmentation!)
+    # numLayersHCalThreeParts needs to be specified for the Endcap
+    cellPositionHcalEndcapTool = CellPositionsHCalPhiThetaSegTool(
+        "CellPositionsHCalEndcap",
+        readoutName=hcalEndcapReadoutName,
+        detectorName="HCalThreePartsEndcap",
+        numLayersHCalThreeParts=[6,9,22],
+        OutputLevel=INFO
+    )
+    hcalEndcapPositionedCellsName = "HCalEndcapPositionedCells"
+    createHcalEndcapPositionedCells = CreateCaloCellPositionsFCCee(
+        "CreateHcalEndcapPositionedCells",
+        OutputLevel=INFO
+    )
+    createHcalEndcapPositionedCells.positionsTool = cellPositionHcalEndcapTool
+    createHcalEndcapPositionedCells.hits.Path = hcalEndcapCellsName
+    createHcalEndcapPositionedCells.positionedHits.Path = hcalEndcapPositionedCellsName
+
+    # 3 - compute new cellID of cells based on new readout - removing row information
+    hcalEndcapCellsName2 = "HCalEndcapCells2"
+
+    # first we create new hits with the readout without the row information
+    # and then merge them into new cells
+    rewriteHCalEndcap = RedoSegmentation("ReSegmentationEndcapHcal",
+                                         # old bitfield (readout)
+                                         oldReadoutName=hcalEndcapReadoutName,
+                                         # specify which fields are going to be altered (deleted/rewritten)
+                                         oldSegmentationIds=["row", "theta", "phi"],
+                                         # new bitfield (readout), with new segmentation (merged modules and theta cells)
+                                         newReadoutName=hcalEndcapReadoutName2,
+                                         OutputLevel=INFO,
+                                         debugPrint=200,
+                                         inhits=hcalEndcapPositionedCellsName,
+                                         outhits="HCalEndcapCellsWithoutRow")
+
+    createHcalEndcapCells2 = CreateCaloCells("CreateHCalEndcapCells2",
+                                             doCellCalibration=False,
+                                             addCellNoise=False,
+                                             filterCellNoise=False,
+                                             OutputLevel=INFO,
+                                             hits=rewriteHCalEndcap.outhits.Path,
+                                             cells=hcalEndcapCellsName2)
+    # 4 - attach positions to the new cells 
+    cellPositionHcalEndcapTool2 = CellPositionsHCalPhiThetaSegTool(
+        "CellPositionsHCalEndcap2",
+        readoutName=hcalEndcapReadoutName2,
+        detectorName="HCalThreePartsEndcap",
+        numLayersHCalThreeParts=[6,9,22],
+        OutputLevel=INFO
+    )
+    hcalEndcapPositionedCellsName2 = "HCalEndcapPositionedCells2"
+    createHcalEndcapPositionedCells2 = CreateCaloCellPositionsFCCee(
+        "CreateHcalEndcapPositionedCells2",
+        OutputLevel=INFO
+    )
+    createHcalEndcapPositionedCells2.positionsTool = cellPositionHcalEndcapTool2
+    createHcalEndcapPositionedCells2.hits.Path = hcalEndcapCellsName2
+    createHcalEndcapPositionedCells2.positionedHits.Path = hcalEndcapPositionedCellsName2
 
     # TODO: noise...
     
@@ -843,10 +909,12 @@ else:
 
 if not saveCells:
     out.outputCommands.append("drop ECal*Cells*")
+    out.outputCommands.append("drop HCal*Cells*")
 if not saveClusterCells:
     out.outputCommands.append("drop *ClusterCells*")
 if not saveHits:
     out.outputCommands.append("drop ECal*Hits*")
+    out.outputCommands.append("drop HCal*Hits*")
 
 # out.filename = "root/output_fullCalo_SimAndDigi_withTopoCluster_MagneticField_"+str(magneticField)+"_pMin_"+str(momentum*1000)+"_MeV"+"_ThetaMinMax_"+str(thetaMin)+"_"+str(thetaMax)+"_pdgId_"+str(pdgCode)+"_pythia"+str(use_pythia)+"_Noise"+str(addNoise)+".root"
 out.filename = "./root/output_evts_" + str(Nevts) + "_pdg_" + str(pdgCode) + "_" + str(momentum) + "_GeV" + "_ThetaMinMax_" + str(thetaMin) + "_" + str(
@@ -863,6 +931,9 @@ createEcalBarrelCells.AuditExecute = True
 createEcalBarrelPositionedCells.AuditExecute = True
 if runHCal:
     createHcalBarrelCells.AuditExecute = True
+    createHcalBarrelPositionedCells.AuditExecute = True
+    createHcalEndcapCells.AuditExecute = True
+    createHcalEndcapPositionedCells.AuditExecute = True
 if doTopoClustering:
     createTopoClusters.AuditExecute = True
 out.AuditExecute = True
@@ -891,7 +962,8 @@ if runHCal:
         rewriteHCalBarrel,
         createHcalBarrelCells2,
         createHcalBarrelPositionedCells2,
-        # createHcalEndcapCells
+        createHcalEndcapCells,
+        createHcalEndcapPositionedCells
     ]
 
 if doSWClustering or doTopoClustering:
